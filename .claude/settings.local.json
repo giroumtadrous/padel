@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\LENOVO\\\\padel\\\\padel\\\\lib\" -Recurse | Select-Object FullName | ForEach-Object { $_.FullName.Replace\\(\"C:\\\\Users\\\\LENOVO\\\\padel\\\\padel\\\\\", \"\"\\) })",
+      "PowerShell(New-Item *)",
+      "PowerShell(flutter analyze *)",
+      "PowerShell(Set-Location \"C:\\\\Users\\\\LENOVO\\\\padel\\\\padel\"; $out = flutter analyze --no-pub 2>&1; $out | Select-String \" error \" | ForEach-Object { $_.Line })"
+    ]
+  }
+}
