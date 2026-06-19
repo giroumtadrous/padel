@@ -23,7 +23,9 @@ class AdminService {
         ])
         .orderBy('startTime')
         .snapshots()
-        .map((snap) => snap.docs.map((d) => BookingModel.fromJson(d.data())).toList());
+        .map((snap) => snap.docs
+            .map((d) => BookingModel.fromJson({...d.data(), 'id': d.id}))
+            .toList());
   }
 
   Stream<Map<String, dynamic>> getDailyRevenueStream(String venueId, DateTime date) {
@@ -38,7 +40,9 @@ class AdminService {
         ])
         .snapshots()
         .map((snap) {
-          final bookings = snap.docs.map((d) => BookingModel.fromJson(d.data())).toList();
+          final bookings = snap.docs
+              .map((d) => BookingModel.fromJson({...d.data(), 'id': d.id}))
+              .toList();
           final total = bookings.fold<double>(0, (sum, b) => sum + b.totalPrice);
           return {
             'total': total,
@@ -98,7 +102,9 @@ class AdminService {
         .collection(AppConstants.venuesCollection)
         .where('adminId', isEqualTo: adminId)
         .get();
-    return snap.docs.map((d) => VenueModel.fromJson(d.data())).toList();
+    return snap.docs
+        .map((d) => VenueModel.fromJson({...d.data(), 'id': d.id}))
+        .toList();
   }
 
   Future<List<CourtModel>> getAdminCourts(String venueId) async {
@@ -107,7 +113,9 @@ class AdminService {
         .doc(venueId)
         .collection(AppConstants.courtsSubcollection)
         .get();
-    return snap.docs.map((d) => CourtModel.fromJson(d.data())).toList();
+    return snap.docs
+        .map((d) => CourtModel.fromJson({...d.data(), 'id': d.id}))
+        .toList();
   }
 
   Future<void> toggleCourtActive(String venueId, String courtId, bool isActive) async {

@@ -65,15 +65,15 @@ class TimeSlotModel {
   bool get isHeldByOther => status == SlotStatus.held;
 
   factory TimeSlotModel.fromJson(Map<String, dynamic> json) => TimeSlotModel(
-        id: json['id'] as String,
-        courtId: json['courtId'] as String,
-        venueId: json['venueId'] as String,
-        date: json['date'] as String,
-        startTime: (json['startTime'] as Timestamp).toDate(),
-        endTime: (json['endTime'] as Timestamp).toDate(),
-        durationMinutes: json['durationMinutes'] as int,
+        id: json['id'] as String? ?? '',
+        courtId: json['courtId'] as String? ?? '',
+        venueId: json['venueId'] as String? ?? '',
+        date: json['date'] as String? ?? '',
+        startTime: (json['startTime'] as Timestamp?)?.toDate() ?? DateTime.now(),
+        endTime: (json['endTime'] as Timestamp?)?.toDate() ?? DateTime.now(),
+        durationMinutes: json['durationMinutes'] as int? ?? 60,
         status: slotStatusFromString(json['status'] as String? ?? AppConstants.statusAvailable),
-        price: (json['price'] as num).toDouble(),
+        price: (json['price'] as num?)?.toDouble() ?? 0.0,
         isPeakHour: json['isPeakHour'] as bool? ?? false,
         bookingId: json['bookingId'] as String?,
         heldBy: json['heldBy'] as String?,

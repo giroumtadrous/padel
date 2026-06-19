@@ -26,7 +26,7 @@ class BookingService {
         .orderBy('startTime')
         .snapshots()
         .map((snap) => snap.docs
-            .map((d) => TimeSlotModel.fromJson(d.data()))
+            .map((d) => TimeSlotModel.fromJson({...d.data(), 'id': d.id}))
             .toList());
   }
 
@@ -268,7 +268,9 @@ class BookingService {
         .where('userId', isEqualTo: userId)
         .orderBy('startTime', descending: true)
         .snapshots()
-        .map((snap) => snap.docs.map((d) => BookingModel.fromJson(d.data())).toList());
+        .map((snap) => snap.docs
+            .map((d) => BookingModel.fromJson({...d.data(), 'id': d.id}))
+            .toList());
   }
 
   Stream<List<BookingModel>> getVenueBookingsStream(String venueId, DateTime date) {
@@ -279,6 +281,8 @@ class BookingService {
         .where('date', isEqualTo: dateStr)
         .orderBy('startTime')
         .snapshots()
-        .map((snap) => snap.docs.map((d) => BookingModel.fromJson(d.data())).toList());
+        .map((snap) => snap.docs
+            .map((d) => BookingModel.fromJson({...d.data(), 'id': d.id}))
+            .toList());
   }
 }

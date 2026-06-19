@@ -81,26 +81,26 @@ class OpenMatchModel {
       userSkill >= minSkillLevel && userSkill <= maxSkillLevel && !isFull && status == MatchStatus.open;
 
   factory OpenMatchModel.fromJson(Map<String, dynamic> json) => OpenMatchModel(
-        id: json['id'] as String,
-        bookingId: json['bookingId'] as String,
-        courtId: json['courtId'] as String,
-        venueId: json['venueId'] as String,
+        id: json['id'] as String? ?? '',
+        bookingId: json['bookingId'] as String? ?? '',
+        courtId: json['courtId'] as String? ?? '',
+        venueId: json['venueId'] as String? ?? '',
         venueName: json['venueName'] as String? ?? '',
         courtName: json['courtName'] as String? ?? '',
-        organizerId: json['organizerId'] as String,
+        organizerId: json['organizerId'] as String? ?? '',
         organizerName: json['organizerName'] as String? ?? '',
-        date: json['date'] as String,
-        startTime: (json['startTime'] as Timestamp).toDate(),
-        endTime: (json['endTime'] as Timestamp).toDate(),
+        date: json['date'] as String? ?? '',
+        startTime: (json['startTime'] as Timestamp?)?.toDate() ?? DateTime.now(),
+        endTime: (json['endTime'] as Timestamp?)?.toDate() ?? DateTime.now(),
         totalSlots: json['totalSlots'] as int? ?? AppConstants.maxMatchPlayers,
         filledSlots: json['filledSlots'] as int? ?? 1,
         participantIds: List<String>.from(json['participantIds'] as List? ?? []),
         minSkillLevel: (json['minSkillLevel'] as num?)?.toDouble() ?? 1.0,
         maxSkillLevel: (json['maxSkillLevel'] as num?)?.toDouble() ?? 7.0,
-        pricePerPlayer: (json['pricePerPlayer'] as num).toDouble(),
+        pricePerPlayer: (json['pricePerPlayer'] as num?)?.toDouble() ?? 0.0,
         description: json['description'] as String? ?? '',
         status: matchStatusFromString(json['status'] as String? ?? AppConstants.matchOpen),
-        createdAt: (json['createdAt'] as Timestamp).toDate(),
+        createdAt: (json['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       );
 
   Map<String, dynamic> toJson() => {

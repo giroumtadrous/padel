@@ -14,13 +14,15 @@ class VenueService {
         .where('isActive', isEqualTo: true)
         .orderBy('name')
         .snapshots()
-        .map((snap) => snap.docs.map((d) => VenueModel.fromJson(d.data())).toList());
+        .map((snap) => snap.docs
+            .map((d) => VenueModel.fromJson({...d.data(), 'id': d.id}))
+            .toList());
   }
 
   Future<VenueModel> getVenue(String venueId) async {
     final doc = await _db.collection(AppConstants.venuesCollection).doc(venueId).get();
     if (!doc.exists) throw Exception('Venue not found');
-    return VenueModel.fromJson(doc.data()!);
+    return VenueModel.fromJson({...doc.data()!, 'id': doc.id});
   }
 
   Stream<List<CourtModel>> getCourtsStream(String venueId) {
@@ -31,7 +33,9 @@ class VenueService {
         .where('isActive', isEqualTo: true)
         .orderBy('name')
         .snapshots()
-        .map((snap) => snap.docs.map((d) => CourtModel.fromJson(d.data())).toList());
+        .map((snap) => snap.docs
+            .map((d) => CourtModel.fromJson({...d.data(), 'id': d.id}))
+            .toList());
   }
 
   Future<List<CourtModel>> getVenueCourts(String venueId) async {
@@ -42,7 +46,9 @@ class VenueService {
         .where('isActive', isEqualTo: true)
         .orderBy('name')
         .get();
-    return snap.docs.map((d) => CourtModel.fromJson(d.data())).toList();
+    return snap.docs
+        .map((d) => CourtModel.fromJson({...d.data(), 'id': d.id}))
+        .toList();
   }
 
   Future<CourtModel> getCourt(String venueId, String courtId) async {
@@ -53,7 +59,7 @@ class VenueService {
         .doc(courtId)
         .get();
     if (!doc.exists) throw Exception('Court not found');
-    return CourtModel.fromJson(doc.data()!);
+    return CourtModel.fromJson({...doc.data()!, 'id': doc.id});
   }
 
   // Admin operations

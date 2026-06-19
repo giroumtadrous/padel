@@ -32,9 +32,9 @@ class UserModel {
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
-      uid: json['uid'] as String,
-      email: json['email'] as String,
-      displayName: json['displayName'] as String,
+      uid: json['uid'] as String? ?? '',
+      email: json['email'] as String? ?? '',
+      displayName: json['displayName'] as String? ?? '',
       photoUrl: json['photoUrl'] as String?,
       role: json['role'] as String? ?? AppConstants.rolePlayer,
       skillLevel: (json['skillLevel'] as num?)?.toDouble() ?? 3.0,
@@ -42,7 +42,7 @@ class UserModel {
       matchesPlayed: json['matchesPlayed'] as int? ?? 0,
       phone: json['phone'] as String?,
       managedVenueIds: List<String>.from(json['managedVenueIds'] as List? ?? []),
-      createdAt: (json['createdAt'] as Timestamp).toDate(),
+      createdAt: (json['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
   }
 

@@ -66,11 +66,11 @@ class VenueModel {
   });
 
   factory VenueModel.fromJson(Map<String, dynamic> json) => VenueModel(
-        id: json['id'] as String,
-        name: json['name'] as String,
-        description: json['description'] as String,
-        address: json['address'] as String,
-        city: json['city'] as String,
+        id: json['id'] as String? ?? '',
+        name: json['name'] as String? ?? '',
+        description: json['description'] as String? ?? '',
+        address: json['address'] as String? ?? '',
+        city: json['city'] as String? ?? '',
         latitude: (json['latitude'] as num?)?.toDouble() ?? 0.0,
         longitude: (json['longitude'] as num?)?.toDouble() ?? 0.0,
         imageUrls: List<String>.from(json['imageUrls'] as List? ?? []),
@@ -81,9 +81,9 @@ class VenueModel {
         closingHour: json['closingHour'] as int? ?? 23,
         rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
         reviewCount: json['reviewCount'] as int? ?? 0,
-        adminId: json['adminId'] as String,
+        adminId: json['adminId'] as String? ?? '',
         isActive: json['isActive'] as bool? ?? true,
-        createdAt: (json['createdAt'] as Timestamp).toDate(),
+        createdAt: (json['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       );
 
   Map<String, dynamic> toJson() => {

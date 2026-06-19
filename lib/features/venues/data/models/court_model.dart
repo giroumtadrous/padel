@@ -33,14 +33,14 @@ class CourtModel {
   bool isPeak(int hour) => hour >= peakStartHour && hour < peakEndHour;
 
   factory CourtModel.fromJson(Map<String, dynamic> json) => CourtModel(
-        id: json['id'] as String,
-        venueId: json['venueId'] as String,
-        name: json['name'] as String,
+        id: json['id'] as String? ?? '',
+        venueId: json['venueId'] as String? ?? '',
+        name: json['name'] as String? ?? '',
         courtType: json['courtType'] as String? ?? 'indoor',
         surface: json['surface'] as String? ?? 'glass',
         imageUrl: json['imageUrl'] as String?,
-        peakHourPrice: (json['peakHourPrice'] as num).toDouble(),
-        offPeakPrice: (json['offPeakPrice'] as num).toDouble(),
+        peakHourPrice: (json['peakHourPrice'] as num?)?.toDouble() ?? 150.0,
+        offPeakPrice: (json['offPeakPrice'] as num?)?.toDouble() ?? 90.0,
         peakStartHour: json['peakStartHour'] as int? ?? 17,
         peakEndHour: json['peakEndHour'] as int? ?? 22,
         isActive: json['isActive'] as bool? ?? true,
