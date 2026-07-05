@@ -78,6 +78,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               selectedDate: _selectedDate,
               onCourtsTap: () => context.go('/admin/courts?venueId=${state.venue.id}'),
               onRevenueTap: () => context.go('/admin/revenue?venueId=${state.venue.id}'),
+              onPaymentsTap: () => context.go('/admin/payments?venueId=${state.venue.id}'),
             );
           }
 
@@ -120,6 +121,7 @@ class _DashboardContent extends StatelessWidget {
   final DateTime selectedDate;
   final VoidCallback onCourtsTap;
   final VoidCallback onRevenueTap;
+  final VoidCallback onPaymentsTap;
 
   static final _dateFmt = DateFormat('EEE, MMM d');
   static final _timeFmt = DateFormat('HH:mm');
@@ -129,6 +131,7 @@ class _DashboardContent extends StatelessWidget {
     required this.selectedDate,
     required this.onCourtsTap,
     required this.onRevenueTap,
+    required this.onPaymentsTap,
   });
 
   @override
@@ -188,22 +191,32 @@ class _DashboardContent extends StatelessWidget {
   }
 
   Widget _buildQuickActions(BuildContext context) {
-    return Row(
+    return Column(
       children: [
-        Expanded(
-          child: _ActionCard(
-            icon: Icons.grid_view_rounded,
-            label: 'Manage Courts',
-            onTap: onCourtsTap,
-          ),
+        Row(
+          children: [
+            Expanded(
+              child: _ActionCard(
+                icon: Icons.grid_view_rounded,
+                label: 'Manage Courts',
+                onTap: onCourtsTap,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _ActionCard(
+                icon: Icons.bar_chart_rounded,
+                label: 'Revenue Report',
+                onTap: onRevenueTap,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _ActionCard(
-            icon: Icons.bar_chart_rounded,
-            label: 'Revenue Report',
-            onTap: onRevenueTap,
-          ),
+        const SizedBox(height: 12),
+        _ActionCard(
+          icon: Icons.receipt_long_rounded,
+          label: 'Payment Verification',
+          onTap: onPaymentsTap,
         ),
       ],
     );

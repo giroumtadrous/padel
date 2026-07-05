@@ -1,6 +1,5 @@
 import 'package:equatable/equatable.dart';
 import 'package:padel/features/booking/data/models/time_slot_model.dart';
-import 'package:padel/features/venues/data/models/court_model.dart';
 
 abstract class BookingEvent extends Equatable {
   const BookingEvent();
@@ -8,44 +7,38 @@ abstract class BookingEvent extends Equatable {
   List<Object?> get props => [];
 }
 
-class LoadSlots extends BookingEvent {
-  final String venueId;
-  final String courtId;
-  final CourtModel court;
-  final DateTime date;
-  final int openingHour;
-  final int closingHour;
-  const LoadSlots({
-    required this.venueId,
-    required this.courtId,
-    required this.court,
-    required this.date,
-    required this.openingHour,
-    required this.closingHour,
-  });
-  @override
-  List<Object?> get props => [venueId, courtId, date];
-}
-
-class HoldSlot extends BookingEvent {
-  final TimeSlotModel slot;
+class HoldSlots extends BookingEvent {
+  final List<TimeSlotModel> slots;
   final String userId;
-  const HoldSlot({required this.slot, required this.userId});
+  const HoldSlots({required this.slots, required this.userId});
   @override
-  List<Object?> get props => [slot.id, userId];
+  List<Object?> get props => [slots.map((s) => s.id).toList(), userId];
 }
 
 class ReleaseHold extends BookingEvent {
-  const ReleaseHold();
+  final String userId;
+  const ReleaseHold(this.userId);
+  @override
+  List<Object?> get props => [userId];
 }
 
 class ConfirmBooking extends BookingEvent {
   final String userId;
   final String venueName;
   final String courtName;
-  const ConfirmBooking({required this.userId, required this.venueName, required this.courtName});
+  final String paymentMethod;
+  final bool useLoyaltyDiscount;
+  final String? paymentProofUrl;
+  const ConfirmBooking({
+    required this.userId,
+    required this.venueName,
+    required this.courtName,
+    this.paymentMethod = 'card',
+    this.useLoyaltyDiscount = false,
+    this.paymentProofUrl,
+  });
   @override
-  List<Object?> get props => [userId];
+  List<Object?> get props => [userId, paymentMethod, useLoyaltyDiscount, paymentProofUrl];
 }
 
 class CancelBooking extends BookingEvent {

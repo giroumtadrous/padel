@@ -1,10 +1,17 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:padel/core/constants/app_colors.dart';
 import 'package:padel/core/widgets/app_error_view.dart';
 import 'package:padel/core/widgets/app_loading.dart';
+import 'package:padel/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:padel/features/auth/presentation/bloc/auth_state.dart';
+import 'package:padel/features/booking/data/models/time_slot_model.dart';
+import 'package:padel/features/booking/data/services/booking_service.dart';
+import 'package:padel/features/booking/presentation/bloc/booking_bloc.dart';
+import 'package:padel/features/booking/presentation/bloc/booking_event.dart';
+import 'package:padel/features/booking/presentation/bloc/booking_state.dart';
 import 'package:padel/features/venues/data/models/court_model.dart';
 import 'package:padel/features/venues/data/models/venue_model.dart';
 import 'package:padel/features/venues/presentation/bloc/venues_bloc.dart';
@@ -20,10 +27,31 @@ class VenueDetailScreen extends StatefulWidget {
 }
 
 class _VenueDetailScreenState extends State<VenueDetailScreen> {
+  DateTime _selectedDate = DateTime.now();
+  CourtModel? _selectedCourt;
+  final List<TimeSlotModel> _selectedSlots = [];
+
+  // Courts x time grid: loaded once per date change (a one-shot fetch, not a
+  // live stream — good enough for browsing/picking; the actual hold/confirm
+  // step still re-validates availability atomically server-side).
+  Map<String, List<TimeSlotModel>> _slotsByCourt = {};
+  bool _gridLoading = false;
+  String? _loadedForDateKey;
+
+  static final _dateLabelFmt = DateFormat('EEE');
+  static final _dateDayFmt = DateFormat('d');
+  static final _timeFmt = DateFormat('HH:mm');
+  static final _dateKeyFmt = DateFormat('yyyy-MM-dd');
+
   @override
   void initState() {
     super.initState();
-    context.read<VenuesBloc>().add(LoadVenueDetail(widget.venueId));
+    // BookingBloc is a single app-wide instance, so it may still be holding
+    // state left over from a previous visit (a completed/errored booking,
+    // an unreleased hold, etc). Reset it so this visit always starts fresh.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) context.read<BookingBloc>().add(const ResetBooking());
+    });
   }
 
   @override
@@ -31,253 +59,682 @@ class _VenueDetailScreenState extends State<VenueDetailScreen> {
     return BlocBuilder<VenuesBloc, VenuesState>(
       builder: (context, state) {
         if (state is VenueDetailLoading || state is VenuesLoading) {
-          return Scaffold(appBar: AppBar(), body: const AppLoadingSpinner());
+          return const Scaffold(
+            backgroundColor: AppColors.background,
+            body: AppLoadingSpinner(),
+          );
         }
         if (state is VenuesError) {
           return Scaffold(
+            backgroundColor: AppColors.background,
             appBar: AppBar(),
             body: AppErrorView(
               message: state.message,
-              onRetry: () => context.read<VenuesBloc>().add(LoadVenueDetail(widget.venueId)),
+              onRetry: () =>
+                  context.read<VenuesBloc>().add(LoadVenueDetail(widget.venueId)),
             ),
           );
         }
         if (state is VenueDetailLoaded) {
-          return _VenueDetailContent(venue: state.venue, courts: state.courts);
+          return _buildContent(context, state.venue, state.courts);
         }
-        return Scaffold(appBar: AppBar(), body: const AppLoadingSpinner());
+        return const Scaffold(
+          backgroundColor: AppColors.background,
+          body: AppLoadingSpinner(),
+        );
       },
     );
   }
-}
 
-class _VenueDetailContent extends StatelessWidget {
-  final VenueModel venue;
-  final List<CourtModel> courts;
-
-  const _VenueDetailContent({required this.venue, required this.courts});
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildContent(BuildContext context, VenueModel venue, List<CourtModel> courts) {
+    _loadGridIfNeeded(venue, courts);
     return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          _buildSliverAppBar(context),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
+      backgroundColor: AppColors.background,
+      body: Column(
+        children: [
+          // Navy hero header
+          _buildHero(context, venue),
+          // Scrollable content
+          Expanded(
+            child: SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildVenueInfo(context),
-                  const SizedBox(height: 24),
-                  _buildAmenities(context),
-                  const SizedBox(height: 24),
-                  Text('Courts', style: Theme.of(context).textTheme.headlineMedium),
-                  const SizedBox(height: 12),
+                  // Venue name + location
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          venue.name,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            const Icon(Icons.location_on_outlined,
+                                size: 13, color: AppColors.textSecondary),
+                            const SizedBox(width: 3),
+                            Text(
+                              '${venue.address}, ${venue.city}',
+                              style: const TextStyle(
+                                  fontSize: 12, color: AppColors.textSecondary),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // 3 stat boxes
+                  _buildStatBoxes(courts),
+
+                  // Date strip
+                  _buildDateStrip(venue, courts),
+
+                  // Courts x time grid
+                  _buildCourtsTimeGrid(venue, courts),
+
+                  const SizedBox(height: 100), // space for bottom button
                 ],
               ),
             ),
           ),
-          SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (_, i) => Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
-                child: _CourtCard(court: courts[i], venueId: venue.id),
+        ],
+      ),
+      // Book button at bottom
+      bottomNavigationBar: _buildBookBar(context, venue),
+    );
+  }
+
+  Widget _buildHero(BuildContext context, VenueModel venue) {
+    return Container(
+      height: 110,
+      color: AppColors.navy,
+      child: SafeArea(
+        bottom: false,
+        child: Stack(
+          children: [
+            // Court diagram centered
+            Center(
+              child: Opacity(
+                opacity: 0.4,
+                child: CustomPaint(
+                  size: const Size(200, 80),
+                  painter: _CourtHeroPainter(),
+                ),
               ),
-              childCount: courts.length,
             ),
+            // Back button
+            Positioned(
+              left: 8,
+              top: 0,
+              bottom: 0,
+              child: Center(
+                child: IconButton(
+                  onPressed: () => context.go('/venues'),
+                  icon: const Icon(Icons.arrow_back_rounded,
+                      color: AppColors.textOnDark),
+                ),
+              ),
+            ),
+            // Indoor·AC badge
+            Positioned(
+              right: 8,
+              top: 0,
+              bottom: 0,
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.navyLight,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    venue.amenities.hasShowers ? 'Indoor · AC' : 'Outdoor',
+                    style: const TextStyle(
+                      color: AppColors.textBlueGrey,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatBoxes(List<CourtModel> courts) {
+    final minPrice = courts.isNotEmpty
+        ? courts.map((c) => c.offPeakPrice).reduce((a, b) => a < b ? a : b)
+        : 90.0;
+    // We use venue rating from bloc state
+    final venueState = context.read<VenuesBloc>().state;
+    final rating = venueState is VenueDetailLoaded ? venueState.venue.rating : 0.0;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+      child: Row(
+        children: [
+          _StatBox(
+            label: 'Price',
+            value: 'EGP ${minPrice.toInt()}/hr',
+            color: AppColors.primary,
+            textColor: Colors.white,
           ),
-          const SliverToBoxAdapter(child: SizedBox(height: 40)),
+          const SizedBox(width: 10),
+          _StatBox(
+            label: 'Rating',
+            value: rating.toStringAsFixed(1),
+            color: AppColors.successLight,
+            textColor: AppColors.success,
+          ),
+          const SizedBox(width: 10),
+          _StatBox(
+            label: 'Courts',
+            value: '${courts.length}',
+            color: AppColors.cardElevated,
+            textColor: AppColors.textPrimary,
+          ),
         ],
       ),
     );
   }
 
-  SliverAppBar _buildSliverAppBar(BuildContext context) {
-    return SliverAppBar(
-      expandedHeight: 220,
-      pinned: true,
-      leading: BackButton(onPressed: () => context.go('/venues')),
-      flexibleSpace: FlexibleSpaceBar(
-        background: venue.imageUrls.isNotEmpty
-            ? CachedNetworkImage(
-                imageUrl: venue.imageUrls.first,
-                fit: BoxFit.cover,
-                placeholder: (_, __) => const ShimmerCard(height: 220, borderRadius: 0),
-                errorWidget: (_, __, ___) => Container(color: AppColors.surface),
-              )
-            : Container(color: AppColors.surface),
+  Widget _buildDateStrip(VenueModel venue, List<CourtModel> courts) {
+    final today = DateTime.now();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Select date',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 64,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: 7,
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              itemBuilder: (_, i) {
+                final date = today.add(Duration(days: i));
+                final isSelected = _selectedDate.year == date.year &&
+                    _selectedDate.month == date.month &&
+                    _selectedDate.day == date.day;
+                return GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _selectedDate = date;
+                      _selectedSlots.clear();
+                      _selectedCourt = null;
+                    });
+                    context.read<BookingBloc>().add(const ResetBooking());
+                    _loadGrid(venue, courts);
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    width: 48,
+                    decoration: BoxDecoration(
+                      color: isSelected ? AppColors.primary : AppColors.card,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: isSelected ? AppColors.primary : AppColors.divider,
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          _dateLabelFmt.format(date),
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: isSelected ? Colors.white.withValues(alpha: 0.8) : AppColors.textSecondary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          _dateDayFmt.format(date),
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: isSelected ? Colors.white : AppColors.textPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildVenueInfo(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Expanded(child: Text(venue.name, style: Theme.of(context).textTheme.displayMedium)),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(10),
+  /// Triggers the grid fetch at most once per date (guarded so rebuilds from
+  /// unrelated state changes — e.g. the booking hold listener — don't
+  /// refetch on every frame).
+  void _loadGridIfNeeded(VenueModel venue, List<CourtModel> courts) {
+    final key = _dateKeyFmt.format(_selectedDate);
+    if (_loadedForDateKey == key || _gridLoading) return;
+    _loadGrid(venue, courts);
+  }
+
+  void _loadGrid(VenueModel venue, List<CourtModel> courts) {
+    final key = _dateKeyFmt.format(_selectedDate);
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      setState(() => _gridLoading = true);
+      try {
+        final result = await context.read<BookingService>().getVenueSlotsForDate(
+              venueId: venue.id,
+              courts: courts,
+              date: _selectedDate,
+              openingHour: venue.openingHour,
+              closingHour: venue.closingHour,
+            );
+        if (!mounted) return;
+        setState(() {
+          _slotsByCourt = result;
+          _loadedForDateKey = key;
+          _gridLoading = false;
+        });
+      } catch (_) {
+        if (!mounted) return;
+        setState(() => _gridLoading = false);
+      }
+    });
+  }
+
+  Widget _buildCourtsTimeGrid(VenueModel venue, List<CourtModel> courts) {
+    if (_gridLoading && _slotsByCourt.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.all(20),
+        child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+      );
+    }
+
+    // All courts share the venue's opening/closing hours, so any non-empty
+    // court's slot times represent the full set of rows.
+    final times = _slotsByCourt.values
+        .expand((slots) => slots.map((s) => s.startTime))
+        .toSet()
+        .toList()
+      ..sort();
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Available slots',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              _LegendDot(color: AppColors.primary, label: 'Selected'),
+              const SizedBox(width: 12),
+              _LegendDot(color: AppColors.textHint, label: 'Booked'),
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (times.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Text(
+                'No slots available for this date',
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
               ),
-              child: Row(
+            )
+          else
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Table(
+                defaultColumnWidth: const FixedColumnWidth(76),
+                columnWidths: const {0: FixedColumnWidth(52)},
                 children: [
-                  const Icon(Icons.star_rounded, color: AppColors.primary, size: 16),
-                  const SizedBox(width: 4),
-                  Text(venue.rating.toStringAsFixed(1),
-                      style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700)),
+                  TableRow(
+                    children: [
+                      const SizedBox(height: 32),
+                      ...courts.map((court) => Center(
+                            child: Text(
+                              court.name,
+                              textAlign: TextAlign.center,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                          )),
+                    ],
+                  ),
+                  ...times.map((time) => TableRow(
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Text(
+                              _timeFmt.format(time),
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ),
+                          ...courts.map((court) => _buildGridCell(court, time)),
+                        ],
+                      )),
                 ],
               ),
             ),
-          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGridCell(CourtModel court, DateTime time) {
+    final slots = _slotsByCourt[court.id] ?? [];
+    TimeSlotModel? slot;
+    for (final s in slots) {
+      if (s.startTime.isAtSameMomentAs(time)) {
+        slot = s;
+        break;
+      }
+    }
+
+    if (slot == null) {
+      return const Padding(padding: EdgeInsets.all(3), child: SizedBox(height: 40));
+    }
+
+    final isSelected = _selectedSlots.any((s) => s.id == slot!.id);
+    final isPast = slot.startTime.isBefore(DateTime.now());
+    final isBooked = slot.status == SlotStatus.booked ||
+        slot.status == SlotStatus.maintenance ||
+        (slot.status == SlotStatus.held && slot.heldBy != _currentUserId(context));
+    final isUnavailable = isBooked || isPast;
+
+    Color bgColor;
+    Color textColor;
+    if (isSelected) {
+      bgColor = AppColors.primary;
+      textColor = Colors.white;
+    } else if (isUnavailable) {
+      bgColor = AppColors.cardElevated;
+      textColor = AppColors.textHint;
+    } else {
+      bgColor = AppColors.card;
+      textColor = AppColors.textPrimary;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.all(3),
+      child: GestureDetector(
+        onTap: isUnavailable ? null : () => _toggleSlot(court, slot!),
+        child: Container(
+          height: 40,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: isSelected ? AppColors.primary : AppColors.divider,
+            ),
+          ),
+          child: Text(
+            'EGP ${slot.price.toInt()}',
+            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: textColor),
+          ),
         ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            const Icon(Icons.location_on_outlined, size: 16, color: AppColors.textSecondary),
-            const SizedBox(width: 4),
-            Expanded(child: Text(venue.address, style: Theme.of(context).textTheme.bodyMedium)),
-          ],
+      ),
+    );
+  }
+
+  String? _currentUserId(BuildContext context) {
+    final authState = context.read<AuthBloc>().state;
+    return authState is AuthAuthenticated ? authState.user.uid : null;
+  }
+
+  /// Toggles a slot in/out of the selection. Tapping an already-selected slot
+  /// removes it (from either end of the run); tapping a new slot only adds it
+  /// if it's immediately adjacent to the current contiguous selection, so the
+  /// resulting booking always spans one continuous time range. Tapping a slot
+  /// on a *different* court than the current selection starts a fresh
+  /// selection there instead — a booking can only ever be for one court.
+  void _toggleSlot(CourtModel court, TimeSlotModel slot) {
+    if (_selectedCourt?.id != court.id) {
+      setState(() {
+        _selectedCourt = court;
+        _selectedSlots
+          ..clear()
+          ..add(slot);
+      });
+      return;
+    }
+
+    setState(() {
+      final idx = _selectedSlots.indexWhere((s) => s.id == slot.id);
+      if (idx != -1) {
+        final isAtEdge =
+            slot.id == _selectedSlots.first.id || slot.id == _selectedSlots.last.id;
+        if (isAtEdge) {
+          _selectedSlots.removeAt(idx);
+        } else {
+          _showSnack('Remove slots from the start or end of your selection');
+        }
+        return;
+      }
+
+      if (_selectedSlots.isEmpty) {
+        _selectedSlots.add(slot);
+        return;
+      }
+
+      if (slot.startTime.isAtSameMomentAs(_selectedSlots.last.endTime)) {
+        _selectedSlots.add(slot);
+      } else if (slot.endTime.isAtSameMomentAs(_selectedSlots.first.startTime)) {
+        _selectedSlots.insert(0, slot);
+      } else {
+        _showSnack('Please select consecutive time slots');
+      }
+    });
+  }
+
+  void _showSnack(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Widget _buildBookBar(BuildContext context, VenueModel venue) {
+    final totalPrice = _selectedSlots.fold(0.0, (sum, s) => sum + s.price);
+    final hasSelection = _selectedSlots.isNotEmpty;
+
+    return BlocListener<BookingBloc, BookingState>(
+      listener: (context, state) {
+        if (state is SlotHeld) {
+          context.push('/booking/confirm', extra: {
+            'venueName': venue.name,
+            'courtName': _selectedCourt?.name ?? '',
+          });
+        } else if (state is BookingError) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(state.message), backgroundColor: AppColors.error),
+          );
+        }
+      },
+      child: Container(
+        decoration: const BoxDecoration(
+          color: AppColors.surface,
+          border: Border(top: BorderSide(color: AppColors.divider)),
         ),
-        const SizedBox(height: 8),
-        Row(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+        child: SafeArea(
+          top: false,
+          child: BlocBuilder<BookingBloc, BookingState>(
+            builder: (context, bookingState) {
+              final isLoading = bookingState is SlotHolding;
+              return ElevatedButton(
+                onPressed: hasSelection && !isLoading ? () => _holdSlot(context) : null,
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(50),
+                  backgroundColor:
+                      hasSelection ? AppColors.primary : AppColors.textHint,
+                ),
+                child: isLoading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 2),
+                      )
+                    : Text(
+                        hasSelection
+                            ? 'Book for EGP ${totalPrice.toStringAsFixed(0)}'
+                            : 'Select a time slot',
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _holdSlot(BuildContext context) {
+    if (_selectedSlots.isEmpty) return;
+    final authState = context.read<AuthBloc>().state;
+    if (authState is! AuthAuthenticated) return;
+
+    context.read<BookingBloc>().add(HoldSlots(
+          slots: List.of(_selectedSlots),
+          userId: authState.user.uid,
+        ));
+  }
+}
+
+class _StatBox extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+  final Color textColor;
+
+  const _StatBox({
+    required this.label,
+    required this.value,
+    required this.color,
+    required this.textColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.access_time_rounded, size: 16, color: AppColors.textSecondary),
-            const SizedBox(width: 4),
             Text(
-              'Open ${venue.openingHour}:00 — ${venue.closingHour}:00',
-              style: Theme.of(context).textTheme.bodySmall,
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                color: textColor.withValues(alpha: 0.7),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+                color: textColor,
+              ),
             ),
           ],
         ),
-        if (venue.description.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          Text(venue.description, style: Theme.of(context).textTheme.bodyMedium),
-        ],
-      ],
+      ),
     );
   }
+}
 
-  Widget _buildAmenities(BuildContext context) {
-    final items = <Map<String, dynamic>>[];
-    if (venue.amenities.hasShowers) items.add({'icon': Icons.shower_outlined, 'label': 'Showers'});
-    if (venue.amenities.hasRacketRental) items.add({'icon': Icons.sports_tennis_rounded, 'label': 'Racket Rental'});
-    if (venue.amenities.hasParking) items.add({'icon': Icons.local_parking_rounded, 'label': 'Parking'});
-    if (venue.amenities.hasCafe) items.add({'icon': Icons.coffee_rounded, 'label': 'Café'});
+class _LegendDot extends StatelessWidget {
+  final Color color;
+  final String label;
+  const _LegendDot({required this.color, required this.label});
 
-    if (items.isEmpty) return const SizedBox.shrink();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Text('Amenities', style: Theme.of(context).textTheme.headlineMedium),
-        const SizedBox(height: 12),
-        Row(
-          children: items.map((item) => Expanded(
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 4),
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              decoration: BoxDecoration(
-                color: AppColors.card,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                children: [
-                  Icon(item['icon'] as IconData, color: AppColors.primary, size: 22),
-                  const SizedBox(height: 4),
-                  Text(item['label'] as String, style: Theme.of(context).textTheme.bodySmall, textAlign: TextAlign.center),
-                ],
-              ),
-            ),
-          )).toList(),
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(2),
+          ),
         ),
+        const SizedBox(width: 4),
+        Text(label, style: const TextStyle(fontSize: 10, color: AppColors.textSecondary)),
       ],
     );
   }
 }
 
-class _CourtCard extends StatelessWidget {
-  final CourtModel court;
-  final String venueId;
-
-  const _CourtCard({required this.court, required this.venueId});
-
+class _CourtHeroPainter extends CustomPainter {
   @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => context.go('/venues/$venueId/book/${court.id}'),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.card,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.divider, width: 0.5),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(Icons.sports_tennis_rounded, color: AppColors.primary),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(court.name, style: Theme.of(context).textTheme.titleLarge),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${_capitalize(court.courtType)} · ${_capitalize(court.surface)}',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ],
-              ),
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: AppColors.offPeak.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    'EGP ${court.offPeakPrice.toInt()}',
-                    style: const TextStyle(color: AppColors.offPeak, fontSize: 12, fontWeight: FontWeight.w700),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: AppColors.peakHour.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    'Peak: EGP ${court.peakHourPrice.toInt()}',
-                    style: const TextStyle(color: AppColors.peakHour, fontSize: 11, fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(width: 8),
-            const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textSecondary),
-          ],
-        ),
-      ),
-    );
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+
+    final w = size.width;
+    final h = size.height;
+
+    canvas.drawRect(Rect.fromLTWH(0, 0, w, h), paint);
+    canvas.drawLine(Offset(w / 2, 0), Offset(w / 2, h), paint);
+    canvas.drawLine(Offset(w * 0.25, h * 0.2), Offset(w * 0.25, h * 0.8), paint);
+    canvas.drawLine(Offset(w * 0.75, h * 0.2), Offset(w * 0.75, h * 0.8), paint);
+    canvas.drawLine(Offset(w * 0.25, h / 2), Offset(w * 0.75, h / 2), paint);
+    paint.strokeWidth = 4;
+    canvas.drawLine(Offset(0, h / 2), Offset(w, h / 2), paint);
   }
 
-  String _capitalize(String s) => s.isNotEmpty ? s[0].toUpperCase() + s.substring(1) : s;
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

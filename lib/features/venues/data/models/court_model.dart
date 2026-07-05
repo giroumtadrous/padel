@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class CourtModel {
   final String id;
   final String venueId;
@@ -11,6 +13,7 @@ class CourtModel {
   final int peakEndHour;
   final bool isActive;
   final String? maintenanceNote;
+  final List<DateTime> blockedDates;
 
   const CourtModel({
     required this.id,
@@ -25,6 +28,7 @@ class CourtModel {
     this.peakEndHour = 22,
     this.isActive = true,
     this.maintenanceNote,
+    this.blockedDates = const [],
   });
 
   double priceForHour(int hour) =>
@@ -32,20 +36,42 @@ class CourtModel {
 
   bool isPeak(int hour) => hour >= peakStartHour && hour < peakEndHour;
 
-  factory CourtModel.fromJson(Map<String, dynamic> json) => CourtModel(
-        id: json['id'] as String? ?? '',
-        venueId: json['venueId'] as String? ?? '',
-        name: json['name'] as String? ?? '',
-        courtType: json['courtType'] as String? ?? 'indoor',
-        surface: json['surface'] as String? ?? 'glass',
-        imageUrl: json['imageUrl'] as String?,
-        peakHourPrice: (json['peakHourPrice'] as num?)?.toDouble() ?? 150.0,
-        offPeakPrice: (json['offPeakPrice'] as num?)?.toDouble() ?? 90.0,
-        peakStartHour: json['peakStartHour'] as int? ?? 17,
-        peakEndHour: json['peakEndHour'] as int? ?? 22,
-        isActive: json['isActive'] as bool? ?? true,
-        maintenanceNote: json['maintenanceNote'] as String?,
-      );
+  bool isDateBlocked(DateTime date) {
+    final normalized = DateTime(date.year, date.month, date.day);
+    return blockedDates.any((d) =>
+        d.year == normalized.year &&
+        d.month == normalized.month &&
+        d.day == normalized.day);
+  }
+
+  factory CourtModel.fromJson(Map<String, dynamic> json) {
+    List<DateTime> blocked = [];
+    if (json['blockedDates'] is List) {
+      for (final item in json['blockedDates'] as List) {
+        if (item is Timestamp) {
+          blocked.add(item.toDate());
+        } else if (item is String) {
+          blocked.add(DateTime.tryParse(item) ?? DateTime(2000));
+        }
+      }
+    }
+
+    return CourtModel(
+      id: json['id'] as String? ?? '',
+      venueId: json['venueId'] as String? ?? '',
+      name: json['name'] as String? ?? '',
+      courtType: json['courtType'] as String? ?? 'indoor',
+      surface: json['surface'] as String? ?? 'glass',
+      imageUrl: json['imageUrl'] as String?,
+      peakHourPrice: (json['peakHourPrice'] as num?)?.toDouble() ?? 150.0,
+      offPeakPrice: (json['offPeakPrice'] as num?)?.toDouble() ?? 90.0,
+      peakStartHour: json['peakStartHour'] as int? ?? 17,
+      peakEndHour: json['peakEndHour'] as int? ?? 22,
+      isActive: json['isActive'] as bool? ?? true,
+      maintenanceNote: json['maintenanceNote'] as String?,
+      blockedDates: blocked,
+    );
+  }
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -60,6 +86,9 @@ class CourtModel {
         'peakEndHour': peakEndHour,
         'isActive': isActive,
         'maintenanceNote': maintenanceNote,
+        'blockedDates': blockedDates
+            .map((d) => Timestamp.fromDate(d))
+            .toList(),
       };
 
   CourtModel copyWith({
@@ -73,6 +102,7 @@ class CourtModel {
     int? peakEndHour,
     bool? isActive,
     String? maintenanceNote,
+    List<DateTime>? blockedDates,
   }) {
     return CourtModel(
       id: id,
@@ -87,6 +117,7 @@ class CourtModel {
       peakEndHour: peakEndHour ?? this.peakEndHour,
       isActive: isActive ?? this.isActive,
       maintenanceNote: maintenanceNote ?? this.maintenanceNote,
+      blockedDates: blockedDates ?? this.blockedDates,
     );
   }
 }

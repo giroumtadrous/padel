@@ -4,7 +4,23 @@
       "PowerShell(Get-ChildItem \"C:\\\\Users\\\\LENOVO\\\\padel\\\\padel\\\\lib\" -Recurse | Select-Object FullName | ForEach-Object { $_.FullName.Replace\\(\"C:\\\\Users\\\\LENOVO\\\\padel\\\\padel\\\\\", \"\"\\) })",
       "PowerShell(New-Item *)",
       "PowerShell(flutter analyze *)",
-      "PowerShell(Set-Location \"C:\\\\Users\\\\LENOVO\\\\padel\\\\padel\"; $out = flutter analyze --no-pub 2>&1; $out | Select-String \" error \" | ForEach-Object { $_.Line })"
+      "PowerShell(Set-Location \"C:\\\\Users\\\\LENOVO\\\\padel\\\\padel\"; $out = flutter analyze --no-pub 2>&1; $out | Select-String \" error \" | ForEach-Object { $_.Line })",
+      "Bash(find android *)",
+      "Bash(find ios *)",
+      "PowerShell(gcloud --version 2>&1)",
+      "PowerShell(gcloud auth list 2>&1)",
+      "PowerShell(Test-Path \"$env:APPDATA\\\\gcloud\\\\application_default_credentials.json\"; gcloud config get-value project 2>&1)",
+      "Bash(gcloud auth *)",
+      "Bash(curl -s -o /tmp/write_test.json -w '%{http_code}' -X PATCH -H 'Authorization: Bearer __CMDSUB_OUTPUT__' -H 'Content-Type: application/json' 'https://firestore.googleapis.com/v1/projects/padel-5bb05/databases/\\(default\\)/documents/_seed_test/probe' -d '{\"fields\":{\"ok\":{\"booleanValue\":true}}}')",
+      "Read(//tmp/**)",
+      "Bash(curl -s -o /dev/null -w 'Delete HTTP code: %{http_code}\\\\n' -X DELETE -H 'Authorization: Bearer __CMDSUB_OUTPUT__' 'https://firestore.googleapis.com/v1/projects/padel-5bb05/databases/\\(default\\)/documents/_seed_test/probe')",
+      "Bash(firebase deploy *)",
+      "Bash(curl -s -H 'Authorization: Bearer __CMDSUB_OUTPUT__' 'https://firestore.googleapis.com/v1/projects/padel-5bb05/databases/\\(default\\)/documents/venues/venue_cairo_padel')",
+      "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\);process.stdin.on\\('end',\\(\\)=>{const j=JSON.parse\\(d\\);console.log\\('courts found:',\\(j.documents||[]\\).length\\)}\\)\")",
+      "Bash(flutter analyze *)",
+      "Bash(grep -A2 '\"bloc\"' pubspec.lock)",
+      "Bash(grep -A2 'name: bloc' pubspec.lock)",
+      "Bash(grep -B3 'name: bloc$' pubspec.lock)"
     ]
   }
 }

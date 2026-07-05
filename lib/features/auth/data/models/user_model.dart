@@ -14,6 +14,15 @@ class UserModel {
   final List<String> managedVenueIds;
   final DateTime createdAt;
 
+  // New features
+  final List<String> favoriteVenueIds;
+  final double walletBalance;
+  final int loyaltyBookingCount;
+  final bool loyaltyDiscountEligible;
+  final String? fcmToken;
+  final bool phoneVerified;
+  final bool phoneVerificationSkipped;
+
   const UserModel({
     required this.uid,
     required this.email,
@@ -26,6 +35,13 @@ class UserModel {
     this.phone,
     this.managedVenueIds = const [],
     required this.createdAt,
+    this.favoriteVenueIds = const [],
+    this.walletBalance = 0.0,
+    this.loyaltyBookingCount = 0,
+    this.loyaltyDiscountEligible = false,
+    this.fcmToken,
+    this.phoneVerified = false,
+    this.phoneVerificationSkipped = false,
   });
 
   bool get isAdmin => role == AppConstants.roleAdmin;
@@ -43,6 +59,13 @@ class UserModel {
       phone: json['phone'] as String?,
       managedVenueIds: List<String>.from(json['managedVenueIds'] as List? ?? []),
       createdAt: (json['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      favoriteVenueIds: List<String>.from(json['favoriteVenueIds'] as List? ?? []),
+      walletBalance: (json['walletBalance'] as num?)?.toDouble() ?? 0.0,
+      loyaltyBookingCount: json['loyaltyBookingCount'] as int? ?? 0,
+      loyaltyDiscountEligible: json['loyaltyDiscountEligible'] as bool? ?? false,
+      fcmToken: json['fcmToken'] as String?,
+      phoneVerified: json['phoneVerified'] as bool? ?? false,
+      phoneVerificationSkipped: json['phoneVerificationSkipped'] as bool? ?? false,
     );
   }
 
@@ -58,6 +81,13 @@ class UserModel {
         'phone': phone,
         'managedVenueIds': managedVenueIds,
         'createdAt': Timestamp.fromDate(createdAt),
+        'favoriteVenueIds': favoriteVenueIds,
+        'walletBalance': walletBalance,
+        'loyaltyBookingCount': loyaltyBookingCount,
+        'loyaltyDiscountEligible': loyaltyDiscountEligible,
+        'fcmToken': fcmToken,
+        'phoneVerified': phoneVerified,
+        'phoneVerificationSkipped': phoneVerificationSkipped,
       };
 
   UserModel copyWith({
@@ -69,6 +99,13 @@ class UserModel {
     int? matchesPlayed,
     String? phone,
     List<String>? managedVenueIds,
+    List<String>? favoriteVenueIds,
+    double? walletBalance,
+    int? loyaltyBookingCount,
+    bool? loyaltyDiscountEligible,
+    String? fcmToken,
+    bool? phoneVerified,
+    bool? phoneVerificationSkipped,
   }) {
     return UserModel(
       uid: uid,
@@ -82,6 +119,13 @@ class UserModel {
       phone: phone ?? this.phone,
       managedVenueIds: managedVenueIds ?? this.managedVenueIds,
       createdAt: createdAt,
+      favoriteVenueIds: favoriteVenueIds ?? this.favoriteVenueIds,
+      walletBalance: walletBalance ?? this.walletBalance,
+      loyaltyBookingCount: loyaltyBookingCount ?? this.loyaltyBookingCount,
+      loyaltyDiscountEligible: loyaltyDiscountEligible ?? this.loyaltyDiscountEligible,
+      fcmToken: fcmToken ?? this.fcmToken,
+      phoneVerified: phoneVerified ?? this.phoneVerified,
+      phoneVerificationSkipped: phoneVerificationSkipped ?? this.phoneVerificationSkipped,
     );
   }
 }

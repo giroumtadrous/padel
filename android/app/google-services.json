@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "297754277020-m6gc23e6a6a11jvmcess5ndtt8q342ur.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.padel",
+            "certificate_hash": "c9bf488c911d0c9218828e13529e67485350c424"
+          }
+        },
+        {
           "client_id": "297754277020-511o6aeeq4ufrsat0auqotk13seojs6h.apps.googleusercontent.com",
           "client_type": 3
         }
@@ -29,6 +37,13 @@
             {
               "client_id": "297754277020-511o6aeeq4ufrsat0auqotk13seojs6h.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "297754277020-a9dle8q3q0n17o8l33fg9qks21j7bde5.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.padel"
+              }
             }
           ]
         }

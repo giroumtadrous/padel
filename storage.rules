@@ -1,0 +1,19 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isAdmin() {
+      return firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
+        firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Manual-payment transfer proof screenshots: owner writes, owner/admin reads.
+    match /payment_proofs/{userId}/{fileName} {
+      allow read:   if request.auth != null && (request.auth.uid == userId || isAdmin());
+      allow write:  if request.auth != null && request.auth.uid == userId &&
+                       request.resource.size < 10 * 1024 * 1024 &&
+                       request.resource.contentType.matches('image/.*');
+      allow delete: if false;
+    }
+  }
+}

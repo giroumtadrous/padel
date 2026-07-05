@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:padel/features/booking/data/models/booking_model.dart';
+import 'package:padel/features/booking/data/models/time_slot_model.dart';
 import 'package:padel/features/booking/data/services/booking_service.dart';
 import 'booking_event.dart';
 import 'booking_state.dart';
@@ -11,8 +12,7 @@ class BookingBloc extends Bloc<BookingEvent, BookingState> {
   BookingBloc({required BookingService bookingService})
       : _bookingService = bookingService,
         super(const BookingInitial()) {
-    on<LoadSlots>(_onLoadSlots);
-    on<HoldSlot>(_onHoldSlot);
+    on<HoldSlots>(_onHoldSlots);
     on<ReleaseHold>(_onReleaseHold);
     on<ConfirmBooking>(_onConfirmBooking);
     on<CancelBooking>(_onCancelBooking);
@@ -20,54 +20,69 @@ class BookingBloc extends Bloc<BookingEvent, BookingState> {
     on<ResetBooking>(_onReset);
   }
 
-  Future<void> _onLoadSlots(LoadSlots event, Emitter<BookingState> emit) async {
-    emit(const SlotsLoading());
-    await _bookingService.generateSlotsForDay(
-      venueId: event.venueId,
-      courtId: event.courtId,
-      court: event.court,
-      date: event.date,
-      openingHour: event.openingHour,
-      closingHour: event.closingHour,
-    );
-    await emit.onEach(
-      _bookingService.getSlotsStream(event.venueId, event.courtId, event.date),
-      onData: (slots) => emit(SlotsLoaded(slots: slots)),
-      onError: (e, _) => emit(BookingError(e.toString())),
-    );
-  }
-
-  Future<void> _onHoldSlot(HoldSlot event, Emitter<BookingState> emit) async {
+  Future<void> _onHoldSlots(HoldSlots event, Emitter<BookingState> emit) async {
     emit(const SlotHolding());
-    final held = await _bookingService.holdSlot(
-      venueId: event.slot.venueId,
-      courtId: event.slot.courtId,
-      date: event.slot.date,
-      slotId: event.slot.id,
+
+    final firstSlot = event.slots.first;
+    final hasConflict = await _bookingService.hasOverlappingBookingAtVenue(
       userId: event.userId,
+      venueId: firstSlot.venueId,
+      courtId: firstSlot.courtId,
+      dateStr: firstSlot.date,
+      startTime: event.slots.first.startTime,
+      endTime: event.slots.last.endTime,
     );
-    if (held) {
-      emit(SlotHeld(
-        slot: event.slot,
-        venueId: event.slot.venueId,
-        courtId: event.slot.courtId,
-      ));
-    } else {
-      emit(const BookingError('This slot is no longer available. Please choose another.'));
+    if (hasConflict) {
+      emit(const BookingError(
+          'You already have a booking at this venue for an overlapping time on another court.'));
+      return;
     }
+
+    final heldSoFar = <TimeSlotModel>[];
+    for (final slot in event.slots) {
+      final ok = await _bookingService.holdSlot(
+        venueId: slot.venueId,
+        courtId: slot.courtId,
+        date: slot.date,
+        slotId: slot.id,
+        userId: event.userId,
+      );
+      if (!ok) {
+        // Roll back any holds already acquired in this batch.
+        for (final held in heldSoFar) {
+          await _bookingService.releaseHold(
+            venueId: held.venueId,
+            courtId: held.courtId,
+            date: held.date,
+            slotId: held.id,
+            userId: event.userId,
+          );
+        }
+        emit(const BookingError(
+            'One or more selected slots are no longer available. Please choose again.'));
+        return;
+      }
+      heldSoFar.add(slot);
+    }
+    emit(SlotHeld(
+      slots: event.slots,
+      venueId: event.slots.first.venueId,
+      courtId: event.slots.first.courtId,
+    ));
   }
 
   Future<void> _onReleaseHold(ReleaseHold event, Emitter<BookingState> emit) async {
     final current = state;
     if (current is SlotHeld) {
-      // Fire-and-forget release
-      _bookingService.releaseHold(
-        venueId: current.venueId,
-        courtId: current.courtId,
-        date: current.slot.date,
-        slotId: current.slot.id,
-        userId: '',
-      );
+      for (final slot in current.slots) {
+        await _bookingService.releaseHold(
+          venueId: slot.venueId,
+          courtId: slot.courtId,
+          date: slot.date,
+          slotId: slot.id,
+          userId: event.userId,
+        );
+      }
     }
     emit(const BookingInitial());
   }
@@ -81,12 +96,13 @@ class BookingBloc extends Bloc<BookingEvent, BookingState> {
       final booking = await _bookingService.confirmBooking(
         venueId: current.venueId,
         courtId: current.courtId,
-        slotId: current.slot.id,
-        date: current.slot.date,
+        slots: current.slots,
         userId: event.userId,
         venueName: event.venueName,
         courtName: event.courtName,
-        slot: current.slot,
+        paymentMethod: event.paymentMethod,
+        applyLoyaltyDiscount: event.useLoyaltyDiscount,
+        paymentProofUrl: event.paymentProofUrl,
       );
       emit(BookingSuccess(booking));
     } catch (e) {
@@ -97,7 +113,6 @@ class BookingBloc extends Bloc<BookingEvent, BookingState> {
   Future<void> _onCancelBooking(CancelBooking event, Emitter<BookingState> emit) async {
     try {
       await _bookingService.cancelBooking(event.bookingId);
-      // History will be refreshed via stream
     } catch (e) {
       emit(BookingError(e.toString()));
     }

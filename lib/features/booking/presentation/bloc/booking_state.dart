@@ -12,29 +12,23 @@ class BookingInitial extends BookingState {
   const BookingInitial();
 }
 
-class SlotsLoading extends BookingState {
-  const SlotsLoading();
-}
-
-class SlotsLoaded extends BookingState {
-  final List<TimeSlotModel> slots;
-  final TimeSlotModel? selectedSlot;
-  const SlotsLoaded({required this.slots, this.selectedSlot});
-  @override
-  List<Object?> get props => [slots, selectedSlot?.id];
-}
-
 class SlotHolding extends BookingState {
   const SlotHolding();
 }
 
 class SlotHeld extends BookingState {
-  final TimeSlotModel slot;
+  final List<TimeSlotModel> slots;
   final String venueId;
   final String courtId;
-  const SlotHeld({required this.slot, required this.venueId, required this.courtId});
+  const SlotHeld({required this.slots, required this.venueId, required this.courtId});
+
+  double get totalPrice => slots.fold(0.0, (sum, s) => sum + s.price);
+  DateTime get startTime => slots.first.startTime;
+  DateTime get endTime => slots.last.endTime;
+  int get durationMinutes => slots.fold(0, (sum, s) => sum + s.durationMinutes);
+
   @override
-  List<Object?> get props => [slot.id];
+  List<Object?> get props => [slots.map((s) => s.id).toList()];
 }
 
 class BookingInProgress extends BookingState {

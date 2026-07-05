@@ -21,8 +21,8 @@ class MainShell extends StatelessWidget {
           floatingActionButton: isAdmin
               ? FloatingActionButton.small(
                   onPressed: () => context.go('/admin'),
-                  backgroundColor: AppColors.secondary,
-                  foregroundColor: Colors.black,
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
                   child: const Icon(Icons.admin_panel_settings_rounded, size: 20),
                 )
               : null,
@@ -48,20 +48,48 @@ class _BottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: AppColors.surface,
-        border: Border(top: BorderSide(color: AppColors.divider, width: 0.5)),
+        border: Border(top: BorderSide(color: AppColors.divider, width: 1)),
       ),
       child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
+          padding: const EdgeInsets.symmetric(vertical: 6),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _NavItem(icon: Icons.sports_tennis_rounded, label: 'Courts', index: 0, currentIndex: currentIndex, onTap: onTap),
-              _NavItem(icon: Icons.group_rounded, label: 'Matches', index: 1, currentIndex: currentIndex, onTap: onTap),
-              _NavItem(icon: Icons.calendar_today_rounded, label: 'Bookings', index: 2, currentIndex: currentIndex, onTap: onTap),
-              _NavItem(icon: Icons.person_rounded, label: 'Profile', index: 3, currentIndex: currentIndex, onTap: onTap),
+              _NavItem(
+                icon: Icons.home_rounded,
+                activeIcon: Icons.home_rounded,
+                label: 'Home',
+                index: 0,
+                currentIndex: currentIndex,
+                onTap: onTap,
+              ),
+              _NavItem(
+                icon: Icons.calendar_today_outlined,
+                activeIcon: Icons.calendar_today_rounded,
+                label: 'Bookings',
+                index: 1,
+                currentIndex: currentIndex,
+                onTap: onTap,
+              ),
+              _NavItem(
+                icon: Icons.group_outlined,
+                activeIcon: Icons.group_rounded,
+                label: 'Matches',
+                index: 2,
+                currentIndex: currentIndex,
+                onTap: onTap,
+              ),
+              _NavItem(
+                icon: Icons.person_outline_rounded,
+                activeIcon: Icons.person_rounded,
+                label: 'Profile',
+                index: 3,
+                currentIndex: currentIndex,
+                onTap: onTap,
+              ),
             ],
           ),
         ),
@@ -72,6 +100,7 @@ class _BottomNav extends StatelessWidget {
 
 class _NavItem extends StatelessWidget {
   final IconData icon;
+  final IconData activeIcon;
   final String label;
   final int index;
   final int currentIndex;
@@ -79,6 +108,7 @@ class _NavItem extends StatelessWidget {
 
   const _NavItem({
     required this.icon,
+    required this.activeIcon,
     required this.label,
     required this.index,
     required this.currentIndex,
@@ -92,14 +122,14 @@ class _NavItem extends StatelessWidget {
       onTap: () => onTap(index),
       behavior: HitTestBehavior.opaque,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              icon,
+              isActive ? activeIcon : icon,
               color: isActive ? AppColors.primary : AppColors.textHint,
-              size: 24,
+              size: 22,
             ),
             const SizedBox(height: 2),
             Text(

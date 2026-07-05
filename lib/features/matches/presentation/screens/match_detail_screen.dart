@@ -262,8 +262,8 @@ class _MatchDetailContent extends StatelessWidget {
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Keep')),
           TextButton(
             onPressed: () {
-              context.read<MatchesBloc>().add(CancelOpenMatch(matchId: match.id, organizerId: userId));
               Navigator.pop(context);
+              context.read<MatchesBloc>().add(CancelOpenMatch(matchId: match.id, organizerId: userId));
               context.go('/matches');
             },
             child: const Text('Cancel Match', style: TextStyle(color: AppColors.error)),

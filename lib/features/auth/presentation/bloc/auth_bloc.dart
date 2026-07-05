@@ -14,10 +14,16 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthStarted>(_onStarted);
     on<AuthLoginWithEmail>(_onLoginWithEmail);
     on<AuthLoginWithGoogle>(_onLoginWithGoogle);
+    on<AuthLoginWithApple>(_onLoginWithApple);
     on<AuthRegister>(_onRegister);
     on<AuthLoggedOut>(_onLoggedOut);
     on<AuthProfileUpdated>(_onProfileUpdated);
     on<AuthPasswordResetRequested>(_onPasswordReset);
+    on<ToggleFavorite>(_onToggleFavorite);
+    on<TopUpWallet>(_onTopUpWallet);
+    on<SaveFcmToken>(_onSaveFcmToken);
+    on<RefreshCurrentUser>(_onRefreshCurrentUser);
+    on<SkipPhoneVerification>(_onSkipPhoneVerification);
   }
 
   Future<void> _onStarted(AuthStarted event, Emitter<AuthState> emit) async {
@@ -54,6 +60,39 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     }
   }
 
+  Future<void> _onLoginWithApple(AuthLoginWithApple event, Emitter<AuthState> emit) async {
+    emit(const AuthLoading());
+    try {
+      final user = await _authService.signInWithApple();
+      emit(AuthAuthenticated(user));
+    } catch (e) {
+      emit(AuthError(_friendlyError(e.toString())));
+    }
+  }
+
+  Future<void> _onRefreshCurrentUser(RefreshCurrentUser event, Emitter<AuthState> emit) async {
+    if (state is! AuthAuthenticated) return;
+    try {
+      final refreshed = await _authService.currentUser;
+      if (refreshed != null) emit(AuthAuthenticated(refreshed));
+    } catch (_) {
+      // Keep the current state if the refresh fails.
+    }
+  }
+
+  Future<void> _onSkipPhoneVerification(
+      SkipPhoneVerification event, Emitter<AuthState> emit) async {
+    final current = state;
+    if (current is! AuthAuthenticated) return;
+    try {
+      final updated = await _authService.skipPhoneVerification(current.user.uid);
+      emit(AuthAuthenticated(updated));
+    } catch (_) {
+      // Keep the current state if this fails — the verify-phone screen just
+      // won't be able to leave yet, no worse than before.
+    }
+  }
+
   Future<void> _onRegister(AuthRegister event, Emitter<AuthState> emit) async {
     emit(const AuthLoading());
     try {
@@ -69,7 +108,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }
 
   Future<void> _onLoggedOut(AuthLoggedOut event, Emitter<AuthState> emit) async {
-    await _authService.signOut();
+    try {
+      await _authService.signOut();
+    } catch (_) {
+      // Best-effort — even if the Google/Firebase sign-out call itself fails
+      // (e.g. no network), still drop local auth state so the router sends
+      // the user back to /login instead of leaving them stuck on the
+      // current screen with no way forward.
+    }
     emit(const AuthUnauthenticated());
   }
 
@@ -102,20 +148,61 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     }
   }
 
+  Future<void> _onToggleFavorite(ToggleFavorite event, Emitter<AuthState> emit) async {
+    final current = state;
+    if (current is! AuthAuthenticated) return;
+
+    try {
+      final updated = await _authService.toggleFavorite(current.user.uid, event.venueId);
+      emit(AuthAuthenticated(updated));
+    } catch (e) {
+      // Silently fail — don't change state on favorite error
+    }
+  }
+
+  Future<void> _onTopUpWallet(TopUpWallet event, Emitter<AuthState> emit) async {
+    final current = state;
+    if (current is! AuthAuthenticated) return;
+
+    try {
+      final updated = await _authService.topUpWallet(current.user.uid, event.amount);
+      emit(AuthAuthenticated(updated));
+    } catch (e) {
+      emit(AuthError(e.toString()));
+      emit(current);
+    }
+  }
+
+  Future<void> _onSaveFcmToken(SaveFcmToken event, Emitter<AuthState> emit) async {
+    final current = state;
+    if (current is! AuthAuthenticated) return;
+
+    try {
+      await _authService.saveFcmToken(current.user.uid, event.token);
+    } catch (_) {
+      // Non-critical — ignore
+    }
+  }
+
   String _friendlyError(String raw) {
     if (raw.contains('user-not-found') || raw.contains('wrong-password') || raw.contains('invalid-credential')) {
       return 'Incorrect email or password.';
     }
     if (raw.contains('email-already-in-use')) return 'An account with this email already exists.';
+    if (raw.contains('account-exists-with-different-credential')) {
+      final email = _authService.pendingLinkEmail;
+      return 'An account already exists for ${email ?? 'this email'} using a different sign-in '
+          'method. Sign in with that method once — we\'ll link this one automatically for next time.';
+    }
     if (raw.contains('weak-password')) return 'Password must be at least 6 characters.';
     if (raw.contains('network-request-failed')) return 'No internet connection.';
     if (raw.contains('cancelled')) return 'Sign-in was cancelled.';
+    if (raw.contains('only available on iOS')) return 'Apple Sign-In is only available on iOS.';
     if (raw.contains('permission-denied') || raw.contains('PERMISSION_DENIED')) {
       return 'Database permission error. Please check your Firestore security rules.';
     }
     if (raw.contains('unavailable')) return 'Service temporarily unavailable. Please try again.';
     if (raw.contains('too-many-requests')) return 'Too many attempts. Please wait a moment.';
-    // In debug builds, surface the raw error to make issues obvious
     assert(() {
       // ignore: avoid_print
       print('[AuthBloc] Unhandled error: $raw');

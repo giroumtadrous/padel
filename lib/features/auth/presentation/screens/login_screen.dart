@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -79,6 +81,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   _buildDivider(),
                   const SizedBox(height: 24),
                   _buildGoogleButton(),
+                  if (!kIsWeb && Platform.isIOS) ...[
+                    const SizedBox(height: 12),
+                    _buildAppleButton(),
+                  ],
                   const SizedBox(height: 32),
                   _buildSignUpLink(context),
                 ],
@@ -175,6 +181,18 @@ class _LoginScreenState extends State<LoginScreen> {
         isLoading: state is AuthLoading,
         isOutlined: true,
         icon: const Icon(Icons.g_mobiledata_rounded, size: 22, color: AppColors.primary),
+      ),
+    );
+  }
+
+  Widget _buildAppleButton() {
+    return BlocBuilder<AuthBloc, AuthState>(
+      builder: (context, state) => AppButton(
+        label: 'Continue with Apple',
+        onPressed: () => context.read<AuthBloc>().add(const AuthLoginWithApple()),
+        isLoading: state is AuthLoading,
+        isOutlined: true,
+        icon: const Icon(Icons.apple_rounded, size: 22, color: AppColors.textPrimary),
       ),
     );
   }

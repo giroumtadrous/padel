@@ -22,6 +22,22 @@ class AuthLoginWithGoogle extends AuthEvent {
   const AuthLoginWithGoogle();
 }
 
+class AuthLoginWithApple extends AuthEvent {
+  const AuthLoginWithApple();
+}
+
+/// Re-fetches the current user from Firestore and re-emits
+/// [AuthAuthenticated] — used after an out-of-band update (e.g. phone
+/// verification) that the bloc itself didn't perform.
+class RefreshCurrentUser extends AuthEvent {
+  const RefreshCurrentUser();
+}
+
+/// Permanently skips the phone verification gate for the current user.
+class SkipPhoneVerification extends AuthEvent {
+  const SkipPhoneVerification();
+}
+
 class AuthRegister extends AuthEvent {
   final String email;
   final String password;
@@ -50,4 +66,25 @@ class AuthPasswordResetRequested extends AuthEvent {
   const AuthPasswordResetRequested(this.email);
   @override
   List<Object?> get props => [email];
+}
+
+class ToggleFavorite extends AuthEvent {
+  final String venueId;
+  const ToggleFavorite(this.venueId);
+  @override
+  List<Object?> get props => [venueId];
+}
+
+class TopUpWallet extends AuthEvent {
+  final double amount;
+  const TopUpWallet(this.amount);
+  @override
+  List<Object?> get props => [amount];
+}
+
+class SaveFcmToken extends AuthEvent {
+  final String token;
+  const SaveFcmToken(this.token);
+  @override
+  List<Object?> get props => [token];
 }
