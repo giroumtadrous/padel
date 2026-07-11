@@ -71,3 +71,20 @@ class UpdateCourt extends AdminEvent {
   @override
   List<Object?> get props => [venueId, court.id];
 }
+
+class AssignCourtAdmin extends AdminEvent {
+  final String venueId;
+  final String courtId;
+  final String adminEmail;
+  const AssignCourtAdmin({required this.venueId, required this.courtId, required this.adminEmail});
+  @override
+  List<Object?> get props => [venueId, courtId, adminEmail];
+}
+
+class UnassignCourtAdmin extends AdminEvent {
+  final String venueId;
+  final String courtId;
+  const UnassignCourtAdmin({required this.venueId, required this.courtId});
+  @override
+  List<Object?> get props => [venueId, courtId];
+}

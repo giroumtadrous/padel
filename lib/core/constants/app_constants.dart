@@ -15,6 +15,9 @@ class AppConstants {
   static const String bookingsCollection = 'bookings';
   static const String openMatchesCollection = 'open_matches';
   static const String reviewsCollection = 'reviews';
+  static const String tournamentsCollection = 'tournaments';
+  static const String marketItemsCollection = 'market_items';
+  static const String skillRequestsCollection = 'skill_requests';
 
   static const String rolePlayer = 'player';
   static const String roleAdmin = 'admin';
@@ -35,6 +38,18 @@ class AppConstants {
   static const String matchFull = 'full';
   static const String matchCancelled = 'cancelled';
   static const String matchCompleted = 'completed';
+
+  static const String tournamentScheduled = 'scheduled';
+  static const String tournamentCancelled = 'cancelled';
+  static const String tournamentCompleted = 'completed';
+
+  static const String marketItemActive = 'active';
+  static const String marketItemSold = 'sold';
+  static const String marketItemRemoved = 'removed';
+
+  static const String skillRequestPending = 'pending';
+  static const String skillRequestApproved = 'approved';
+  static const String skillRequestRejected = 'rejected';
 
   // Payment methods
   static const String paymentCard = 'card';
@@ -62,7 +77,4 @@ class AppConstants {
   // Loyalty
   static const int loyaltyBookingsRequired = 5;
   static const double loyaltyDiscountPercent = 0.50;
-
-  // Wallet top-up amounts
-  static const List<double> walletTopUpAmounts = [100, 200, 500];
 }

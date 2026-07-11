@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:padel/core/constants/app_colors.dart';
 import 'package:padel/core/constants/app_constants.dart';
+import 'package:padel/core/utils/card_formatters.dart';
 import 'package:padel/core/widgets/app_button.dart';
 import 'package:padel/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:padel/features/auth/presentation/bloc/auth_state.dart';
@@ -111,7 +112,7 @@ class _CardPaymentScreenState extends State<CardPaymentScreen> {
                     keyboardType: TextInputType.number,
                     inputFormatters: [
                       FilteringTextInputFormatter.digitsOnly,
-                      _CardNumberFormatter(),
+                      CardNumberFormatter(),
                     ],
                     onChanged: (_) => setState(() {}),
                     decoration: const InputDecoration(
@@ -135,7 +136,7 @@ class _CardPaymentScreenState extends State<CardPaymentScreen> {
                           keyboardType: TextInputType.number,
                           inputFormatters: [
                             FilteringTextInputFormatter.digitsOnly,
-                            _CardExpiryFormatter(),
+                            CardExpiryFormatter(),
                           ],
                           onChanged: (_) => setState(() {}),
                           decoration: const InputDecoration(
@@ -291,35 +292,5 @@ class _CardPaymentScreenState extends State<CardPaymentScreen> {
         ),
       ],
     );
-  }
-}
-
-class _CardNumberFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
-    var text = newValue.text.replaceAll(RegExp(r'\D'), '');
-    if (text.length > 16) text = text.substring(0, 16);
-    final buffer = StringBuffer();
-    for (var i = 0; i < text.length; i++) {
-      buffer.write(text[i]);
-      if ((i + 1) % 4 == 0 && i != text.length - 1) buffer.write(' ');
-    }
-    final result = buffer.toString();
-    return newValue.copyWith(text: result, selection: TextSelection.collapsed(offset: result.length));
-  }
-}
-
-class _CardExpiryFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
-    var text = newValue.text.replaceAll(RegExp(r'\D'), '');
-    if (text.length > 4) text = text.substring(0, 4);
-    final buffer = StringBuffer();
-    for (var i = 0; i < text.length; i++) {
-      buffer.write(text[i]);
-      if (i == 1 && i != text.length - 1) buffer.write('/');
-    }
-    final result = buffer.toString();
-    return newValue.copyWith(text: result, selection: TextSelection.collapsed(offset: result.length));
   }
 }

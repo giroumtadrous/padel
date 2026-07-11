@@ -413,42 +413,27 @@ class _VenueDetailScreenState extends State<VenueDetailScreen> {
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Table(
-                defaultColumnWidth: const FixedColumnWidth(76),
-                columnWidths: const {0: FixedColumnWidth(52)},
+                defaultColumnWidth: const FixedColumnWidth(92),
                 children: [
                   TableRow(
-                    children: [
-                      const SizedBox(height: 32),
-                      ...courts.map((court) => Center(
-                            child: Text(
-                              court.name,
-                              textAlign: TextAlign.center,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.textPrimary,
+                    children: courts
+                        .map((court) => Center(
+                              child: Text(
+                                court.name,
+                                textAlign: TextAlign.center,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.textPrimary,
+                                ),
                               ),
-                            ),
-                          )),
-                    ],
+                            ))
+                        .toList(),
                   ),
                   ...times.map((time) => TableRow(
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 4),
-                            child: Text(
-                              _timeFmt.format(time),
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                          ),
-                          ...courts.map((court) => _buildGridCell(court, time)),
-                        ],
+                        children: courts.map((court) => _buildGridCell(court, time)).toList(),
                       )),
                 ],
               ),
@@ -498,7 +483,7 @@ class _VenueDetailScreenState extends State<VenueDetailScreen> {
         onTap: isUnavailable ? null : () => _toggleSlot(court, slot!),
         child: Container(
           height: 40,
-          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 6),
           decoration: BoxDecoration(
             color: bgColor,
             borderRadius: BorderRadius.circular(8),
@@ -506,9 +491,22 @@ class _VenueDetailScreenState extends State<VenueDetailScreen> {
               color: isSelected ? AppColors.primary : AppColors.divider,
             ),
           ),
-          child: Text(
-            'EGP ${slot.price.toInt()}',
-            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: textColor),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                _timeFmt.format(slot.startTime),
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: textColor),
+              ),
+              Text(
+                slot.price.toInt().toString(),
+                style: TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w500,
+                  color: isSelected ? Colors.white70 : AppColors.textHint,
+                ),
+              ),
+            ],
           ),
         ),
       ),

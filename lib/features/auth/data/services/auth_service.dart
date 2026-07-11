@@ -273,14 +273,12 @@ class AuthService {
     required String uid,
     String? displayName,
     String? photoUrl,
-    double? skillLevel,
     String? preferredSide,
     String? phone,
   }) async {
     final updates = <String, dynamic>{};
     if (displayName != null) updates['displayName'] = displayName;
     if (photoUrl != null) updates['photoUrl'] = photoUrl;
-    if (skillLevel != null) updates['skillLevel'] = skillLevel;
     if (preferredSide != null) updates['preferredSide'] = preferredSide;
     if (phone != null) updates['phone'] = phone;
 

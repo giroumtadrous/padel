@@ -17,9 +17,14 @@ import 'package:padel/features/booking/presentation/screens/booking_confirm_scre
 import 'package:padel/features/booking/presentation/screens/card_payment_screen.dart';
 import 'package:padel/features/booking/presentation/screens/booking_history_screen.dart';
 import 'package:padel/features/booking/presentation/screens/booking_success_screen.dart';
+import 'package:padel/features/market/presentation/screens/manage_market_screen.dart';
+import 'package:padel/features/market/presentation/screens/market_screen.dart';
 import 'package:padel/features/matches/presentation/screens/match_detail_screen.dart';
 import 'package:padel/features/matches/presentation/screens/open_matches_screen.dart';
 import 'package:padel/features/reviews/presentation/screens/add_review_screen.dart';
+import 'package:padel/features/skill_requests/presentation/screens/skill_requests_screen.dart';
+import 'package:padel/features/tournaments/presentation/screens/manage_tournaments_screen.dart';
+import 'package:padel/features/tournaments/presentation/screens/tournaments_screen.dart';
 import 'package:padel/features/venues/data/services/venue_service.dart';
 import 'package:padel/features/venues/presentation/bloc/venues_bloc.dart';
 import 'package:padel/features/venues/presentation/bloc/venues_event.dart';
@@ -28,27 +33,29 @@ import 'package:padel/features/venues/presentation/screens/venues_list_screen.da
 import 'package:padel/features/venues/presentation/screens/venues_map_screen.dart';
 import 'package:padel/features/wallet/presentation/screens/wallet_screen.dart';
 import 'package:padel/core/widgets/main_shell.dart';
+import 'package:padel/core/widgets/splash_screen.dart';
 
 class AppRouter {
   static GoRouter router(BuildContext context) {
     final authBloc = context.read<AuthBloc>();
 
     return GoRouter(
-      initialLocation: '/venues',
+      initialLocation: '/splash',
       refreshListenable: _GoRouterRefreshStream(authBloc.stream),
       redirect: (ctx, state) {
         final authState = authBloc.state;
         final loc = state.matchedLocation;
         final isAuthRoute = loc == '/login' || loc == '/register';
 
-        // During initial Firebase auth check, hold at /login (safe blank state)
+        // During initial Firebase auth check, hold at /splash
         if (authState is AuthInitial || authState is AuthLoading) {
-          return isAuthRoute ? null : '/login';
+          return loc == '/splash' ? null : '/splash';
         }
 
         final isAuthenticated = authState is AuthAuthenticated;
         if (!isAuthenticated && !isAuthRoute) return '/login';
         if (isAuthenticated && isAuthRoute) return '/venues';
+        if (loc == '/splash') return isAuthenticated ? '/venues' : '/login';
 
         if (authState is AuthAuthenticated) {
           // Phone verification is suggested for every provider (email/Google/
@@ -60,12 +67,16 @@ class AppRouter {
             return '/verify-phone';
           }
 
-          if (loc.startsWith('/admin') && !authState.user.isAdmin) return '/venues';
+          if (loc.startsWith('/admin') && !authState.user.hasAdminAccess) return '/venues';
         }
 
         return null;
       },
       routes: [
+        GoRoute(
+          path: '/splash',
+          builder: (_, __) => const SplashScreen(),
+        ),
         GoRoute(
           path: '/login',
           builder: (_, __) => const LoginScreen(),
@@ -144,6 +155,18 @@ class AppRouter {
                 venueId: state.uri.queryParameters['venueId'] ?? '',
               ),
             ),
+            GoRoute(
+              path: 'tournaments',
+              builder: (_, __) => const ManageTournamentsScreen(),
+            ),
+            GoRoute(
+              path: 'market',
+              builder: (_, __) => const ManageMarketScreen(),
+            ),
+            GoRoute(
+              path: 'skill-requests',
+              builder: (_, __) => const SkillRequestsScreen(),
+            ),
           ],
         ),
         StatefulShellRoute.indexedStack(
@@ -199,6 +222,22 @@ class AppRouter {
                       ),
                     ),
                   ],
+                ),
+              ],
+            ),
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: '/tournaments',
+                  builder: (_, __) => const TournamentsScreen(),
+                ),
+              ],
+            ),
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: '/market',
+                  builder: (_, __) => const MarketScreen(),
                 ),
               ],
             ),

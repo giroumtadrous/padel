@@ -1,15 +1,31 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:padel/core/constants/app_colors.dart';
 import 'package:padel/core/constants/app_constants.dart';
+import 'package:padel/core/widgets/app_button.dart';
 import 'package:padel/core/widgets/app_loading.dart';
 import 'package:padel/features/auth/presentation/bloc/auth_bloc.dart';
-import 'package:padel/features/auth/presentation/bloc/auth_event.dart';
 import 'package:padel/features/auth/presentation/bloc/auth_state.dart';
+import 'package:padel/features/wallet/presentation/screens/topup_card_screen.dart';
 
-class WalletScreen extends StatelessWidget {
+class WalletScreen extends StatefulWidget {
   const WalletScreen({super.key});
+
+  @override
+  State<WalletScreen> createState() => _WalletScreenState();
+}
+
+class _WalletScreenState extends State<WalletScreen> {
+  final _amountCtrl = TextEditingController();
+  final _amountFormKey = GlobalKey<FormState>();
+
+  @override
+  void dispose() {
+    _amountCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -101,17 +117,46 @@ class WalletScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 16),
 
-                      // Top-up amount grid
-                      GridView.count(
-                        crossAxisCount: 3,
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 12,
-                        childAspectRatio: 1.4,
-                        children: AppConstants.walletTopUpAmounts
-                            .map((amount) => _TopUpCard(amount: amount))
-                            .toList(),
+                      // Amount entry — top-up is paid by Visa/Mastercard only
+                      Form(
+                        key: _amountFormKey,
+                        child: TextFormField(
+                          controller: _amountCtrl,
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                          decoration: const InputDecoration(
+                            labelText: 'Amount (EGP)',
+                            hintText: 'e.g. 200',
+                            prefixIcon: Icon(Icons.payments_outlined),
+                          ),
+                          validator: (v) {
+                            final amount = double.tryParse(v ?? '');
+                            if (amount == null || amount <= 0) return 'Enter a valid amount';
+                            return null;
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Icon(Icons.credit_card_rounded, size: 18, color: AppColors.textSecondary),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Visa / Mastercard only',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      AppButton(
+                        label: 'Continue',
+                        onPressed: () {
+                          if (!_amountFormKey.currentState!.validate()) return;
+                          final amount = double.parse(_amountCtrl.text);
+                          Navigator.of(context).push(MaterialPageRoute(
+                            builder: (_) => TopUpCardScreen(amount: amount),
+                          ));
+                        },
                       ),
 
                       const SizedBox(height: 32),
@@ -126,72 +171,6 @@ class WalletScreen extends StatelessWidget {
           ),
         );
       },
-    );
-  }
-}
-
-class _TopUpCard extends StatelessWidget {
-  final double amount;
-  const _TopUpCard({required this.amount});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => _topUp(context),
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.card,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.divider),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              'EGP',
-              style: TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            Text(
-              amount.toInt().toString(),
-              style: const TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _topUp(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Top Up Wallet'),
-        content: Text('Add EGP ${amount.toInt()} to your wallet?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              context.read<AuthBloc>().add(TopUpWallet(amount));
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('EGP ${amount.toInt()} added to your wallet!')),
-              );
-            },
-            child: const Text('Add'),
-          ),
-        ],
-      ),
     );
   }
 }

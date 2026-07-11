@@ -14,7 +14,7 @@ class MainShell extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, authState) {
-        final isAdmin = authState is AuthAuthenticated && authState.user.isAdmin;
+        final isAdmin = authState is AuthAuthenticated && authState.user.hasAdminAccess;
 
         return Scaffold(
           body: navigationShell,
@@ -56,39 +56,66 @@ class _BottomNav extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 6),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _NavItem(
-                icon: Icons.home_rounded,
-                activeIcon: Icons.home_rounded,
-                label: 'Home',
-                index: 0,
-                currentIndex: currentIndex,
-                onTap: onTap,
+              Expanded(
+                child: _NavItem(
+                  icon: Icons.home_rounded,
+                  activeIcon: Icons.home_rounded,
+                  label: 'Home',
+                  index: 0,
+                  currentIndex: currentIndex,
+                  onTap: onTap,
+                ),
               ),
-              _NavItem(
-                icon: Icons.calendar_today_outlined,
-                activeIcon: Icons.calendar_today_rounded,
-                label: 'Bookings',
-                index: 1,
-                currentIndex: currentIndex,
-                onTap: onTap,
+              Expanded(
+                child: _NavItem(
+                  icon: Icons.calendar_today_outlined,
+                  activeIcon: Icons.calendar_today_rounded,
+                  label: 'Bookings',
+                  index: 1,
+                  currentIndex: currentIndex,
+                  onTap: onTap,
+                ),
               ),
-              _NavItem(
-                icon: Icons.group_outlined,
-                activeIcon: Icons.group_rounded,
-                label: 'Matches',
-                index: 2,
-                currentIndex: currentIndex,
-                onTap: onTap,
+              Expanded(
+                child: _NavItem(
+                  icon: Icons.group_outlined,
+                  activeIcon: Icons.group_rounded,
+                  label: 'Matches',
+                  index: 2,
+                  currentIndex: currentIndex,
+                  onTap: onTap,
+                ),
               ),
-              _NavItem(
-                icon: Icons.person_outline_rounded,
-                activeIcon: Icons.person_rounded,
-                label: 'Profile',
-                index: 3,
-                currentIndex: currentIndex,
-                onTap: onTap,
+              Expanded(
+                child: _NavItem(
+                  icon: Icons.emoji_events_outlined,
+                  activeIcon: Icons.emoji_events_rounded,
+                  label: 'Tournaments',
+                  index: 3,
+                  currentIndex: currentIndex,
+                  onTap: onTap,
+                ),
+              ),
+              Expanded(
+                child: _NavItem(
+                  icon: Icons.storefront_outlined,
+                  activeIcon: Icons.storefront_rounded,
+                  label: 'Market',
+                  index: 4,
+                  currentIndex: currentIndex,
+                  onTap: onTap,
+                ),
+              ),
+              Expanded(
+                child: _NavItem(
+                  icon: Icons.person_outline_rounded,
+                  activeIcon: Icons.person_rounded,
+                  label: 'Profile',
+                  index: 5,
+                  currentIndex: currentIndex,
+                  onTap: onTap,
+                ),
               ),
             ],
           ),
@@ -122,20 +149,23 @@ class _NavItem extends StatelessWidget {
       onTap: () => onTap(index),
       behavior: HitTestBehavior.opaque,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
               isActive ? activeIcon : icon,
               color: isActive ? AppColors.primary : AppColors.textHint,
-              size: 22,
+              size: 21,
             ),
             const SizedBox(height: 2),
             Text(
               label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 10,
+                fontSize: 9,
                 color: isActive ? AppColors.primary : AppColors.textHint,
                 fontWeight: isActive ? FontWeight.w700 : FontWeight.w400,
               ),

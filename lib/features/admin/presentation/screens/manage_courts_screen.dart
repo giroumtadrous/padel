@@ -75,6 +75,21 @@ class _ManageCourtsScreenState extends State<ManageCourtsScreen> {
                     onEdit: () => _showEditCourtSheet(_courts[i]),
                     onBlockDateAdded: (date) => _blockDate(_courts[i].id, date),
                     onBlockDateRemoved: (date) => _unblockDate(_courts[i].id, date),
+                    onAssignAdmin: (email) async {
+                      context.read<AdminBloc>().add(AssignCourtAdmin(
+                            venueId: widget.venueId,
+                            courtId: _courts[i].id,
+                            adminEmail: email,
+                          ));
+                      await _loadCourts();
+                    },
+                    onUnassignAdmin: () async {
+                      context.read<AdminBloc>().add(UnassignCourtAdmin(
+                            venueId: widget.venueId,
+                            courtId: _courts[i].id,
+                          ));
+                      await _loadCourts();
+                    },
                   ),
                 ),
     );
@@ -221,6 +236,8 @@ class _CourtAdminCard extends StatelessWidget {
   final VoidCallback onEdit;
   final ValueChanged<DateTime> onBlockDateAdded;
   final ValueChanged<DateTime> onBlockDateRemoved;
+  final ValueChanged<String> onAssignAdmin;
+  final VoidCallback onUnassignAdmin;
 
   static final _dateFmt = DateFormat('MMM d, yyyy');
 
@@ -231,6 +248,8 @@ class _CourtAdminCard extends StatelessWidget {
     required this.onEdit,
     required this.onBlockDateAdded,
     required this.onBlockDateRemoved,
+    required this.onAssignAdmin,
+    required this.onUnassignAdmin,
   });
 
   @override
@@ -290,6 +309,45 @@ class _CourtAdminCard extends StatelessWidget {
                   onChanged: onToggle,
                   activeColor: AppColors.primary,
                 ),
+              ],
+            ),
+          ),
+
+          // Court admin assignment
+          const Divider(height: 1),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+            child: Row(
+              children: [
+                const Icon(Icons.verified_user_outlined, size: 14, color: AppColors.secondary),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    court.courtAdminEmail != null
+                        ? 'Admin: ${court.courtAdminEmail}'
+                        : 'No admin assigned',
+                    style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (court.courtAdminEmail != null)
+                  TextButton(
+                    onPressed: onUnassignAdmin,
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.error,
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    ),
+                    child: const Text('Remove', style: TextStyle(fontSize: 12)),
+                  )
+                else
+                  TextButton(
+                    onPressed: () => _showAssignDialog(context),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.primary,
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    ),
+                    child: const Text('Assign Admin', style: TextStyle(fontSize: 12)),
+                  ),
               ],
             ),
           ),
@@ -377,6 +435,36 @@ class _CourtAdminCard extends StatelessWidget {
                   ),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAssignDialog(BuildContext context) {
+    final emailCtrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Assign Court Admin'),
+        content: TextField(
+          controller: emailCtrl,
+          keyboardType: TextInputType.emailAddress,
+          decoration: const InputDecoration(
+            labelText: 'Admin Email',
+            hintText: 'admin@example.com',
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () {
+              final email = emailCtrl.text.trim();
+              if (email.isEmpty) return;
+              Navigator.pop(ctx);
+              onAssignAdmin(email);
+            },
+            child: const Text('Assign'),
           ),
         ],
       ),

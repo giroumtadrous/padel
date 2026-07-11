@@ -14,9 +14,14 @@ import 'package:padel/features/auth/presentation/bloc/auth_event.dart';
 import 'package:padel/features/auth/presentation/bloc/auth_state.dart';
 import 'package:padel/features/booking/data/services/booking_service.dart';
 import 'package:padel/features/booking/presentation/bloc/booking_bloc.dart';
+import 'package:padel/features/market/data/services/market_service.dart';
+import 'package:padel/features/market/presentation/bloc/market_bloc.dart';
 import 'package:padel/features/matches/data/services/matchmaking_service.dart';
 import 'package:padel/features/matches/presentation/bloc/matches_bloc.dart';
 import 'package:padel/features/reviews/data/services/review_service.dart';
+import 'package:padel/features/skill_requests/data/services/skill_request_service.dart';
+import 'package:padel/features/tournaments/data/services/tournament_service.dart';
+import 'package:padel/features/tournaments/presentation/bloc/tournaments_bloc.dart';
 import 'package:padel/features/venues/data/services/venue_service.dart';
 import 'package:padel/features/venues/presentation/bloc/venues_bloc.dart';
 import 'firebase_options.dart';
@@ -52,6 +57,9 @@ class PadelApp extends StatelessWidget {
     final adminService = AdminService();
     final reviewService = ReviewService();
     final notificationsRepository = NotificationsRepository();
+    final tournamentService = TournamentService();
+    final marketService = MarketService();
+    final skillRequestService = SkillRequestService();
 
     return MultiRepositoryProvider(
       providers: [
@@ -62,11 +70,17 @@ class PadelApp extends StatelessWidget {
         RepositoryProvider.value(value: adminService),
         RepositoryProvider.value(value: reviewService),
         RepositoryProvider.value(value: notificationsRepository),
+        RepositoryProvider.value(value: tournamentService),
+        RepositoryProvider.value(value: marketService),
+        RepositoryProvider.value(value: skillRequestService),
       ],
       child: MultiBlocProvider(
         providers: [
           BlocProvider(
-            create: (_) => AuthBloc(authService: authService)..add(const AuthStarted()),
+            create: (_) => AuthBloc(
+              authService: authService,
+              skillRequestService: skillRequestService,
+            )..add(const AuthStarted()),
           ),
           BlocProvider(
             create: (_) => VenuesBloc(venueService: venueService),
@@ -79,6 +93,12 @@ class PadelApp extends StatelessWidget {
           ),
           BlocProvider(
             create: (_) => AdminBloc(adminService: adminService, venueService: venueService),
+          ),
+          BlocProvider(
+            create: (_) => TournamentsBloc(tournamentService: tournamentService),
+          ),
+          BlocProvider(
+            create: (_) => MarketBloc(marketService: marketService),
           ),
         ],
         child: const _AppView(),

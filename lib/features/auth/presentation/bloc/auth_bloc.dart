@@ -1,15 +1,18 @@
 import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:padel/features/auth/data/services/auth_service.dart';
+import 'package:padel/features/skill_requests/data/services/skill_request_service.dart';
 import 'auth_event.dart';
 import 'auth_state.dart';
 
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final AuthService _authService;
+  final SkillRequestService _skillRequestService;
   StreamSubscription? _authSubscription;
 
-  AuthBloc({required AuthService authService})
+  AuthBloc({required AuthService authService, SkillRequestService? skillRequestService})
       : _authService = authService,
+        _skillRequestService = skillRequestService ?? SkillRequestService(),
         super(const AuthInitial()) {
     on<AuthStarted>(_onStarted);
     on<AuthLoginWithEmail>(_onLoginWithEmail);
@@ -18,6 +21,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthRegister>(_onRegister);
     on<AuthLoggedOut>(_onLoggedOut);
     on<AuthProfileUpdated>(_onProfileUpdated);
+    on<RequestSkillLevelChange>(_onRequestSkillLevelChange);
     on<AuthPasswordResetRequested>(_onPasswordReset);
     on<ToggleFavorite>(_onToggleFavorite);
     on<TopUpWallet>(_onTopUpWallet);
@@ -128,11 +132,30 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       final updated = await _authService.updateProfile(
         uid: current.user.uid,
         displayName: event.displayName,
-        skillLevel: event.skillLevel,
         preferredSide: event.preferredSide,
         phone: event.phone,
       );
       emit(AuthAuthenticated(updated));
+    } catch (e) {
+      emit(AuthError(e.toString()));
+      emit(current);
+    }
+  }
+
+  Future<void> _onRequestSkillLevelChange(
+      RequestSkillLevelChange event, Emitter<AuthState> emit) async {
+    final current = state;
+    if (current is! AuthAuthenticated) return;
+
+    try {
+      await _skillRequestService.submitRequest(
+        userId: current.user.uid,
+        userName: current.user.displayName,
+        currentLevel: current.user.skillLevel,
+        requestedLevel: event.requestedLevel,
+      );
+      final refreshed = await _authService.currentUser;
+      if (refreshed != null) emit(AuthAuthenticated(refreshed));
     } catch (e) {
       emit(AuthError(e.toString()));
       emit(current);

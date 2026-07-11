@@ -8,6 +8,7 @@ import 'package:padel/core/widgets/app_loading.dart';
 import 'package:padel/features/admin/presentation/bloc/admin_bloc.dart';
 import 'package:padel/features/admin/presentation/bloc/admin_event.dart';
 import 'package:padel/features/admin/presentation/bloc/admin_state.dart';
+import 'package:padel/features/admin/presentation/screens/court_admin_dashboard_screen.dart';
 import 'package:padel/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:padel/features/auth/presentation/bloc/auth_state.dart';
 import 'package:padel/features/booking/data/models/booking_model.dart';
@@ -43,6 +44,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final authState = context.watch<AuthBloc>().state;
+    if (authState is AuthAuthenticated &&
+        authState.user.managedVenueIds.isEmpty &&
+        authState.user.managedCourtIds.isNotEmpty) {
+      return CourtAdminDashboardScreen(managedCourtIds: authState.user.managedCourtIds);
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Admin Dashboard'),
@@ -79,6 +87,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               onCourtsTap: () => context.go('/admin/courts?venueId=${state.venue.id}'),
               onRevenueTap: () => context.go('/admin/revenue?venueId=${state.venue.id}'),
               onPaymentsTap: () => context.go('/admin/payments?venueId=${state.venue.id}'),
+              onTournamentsTap: () => context.go('/admin/tournaments'),
+              onMarketTap: () => context.go('/admin/market'),
+              onSkillRequestsTap: () => context.go('/admin/skill-requests'),
             );
           }
 
@@ -122,6 +133,9 @@ class _DashboardContent extends StatelessWidget {
   final VoidCallback onCourtsTap;
   final VoidCallback onRevenueTap;
   final VoidCallback onPaymentsTap;
+  final VoidCallback onTournamentsTap;
+  final VoidCallback onMarketTap;
+  final VoidCallback onSkillRequestsTap;
 
   static final _dateFmt = DateFormat('EEE, MMM d');
   static final _timeFmt = DateFormat('HH:mm');
@@ -132,6 +146,9 @@ class _DashboardContent extends StatelessWidget {
     required this.onCourtsTap,
     required this.onRevenueTap,
     required this.onPaymentsTap,
+    required this.onTournamentsTap,
+    required this.onMarketTap,
+    required this.onSkillRequestsTap,
   });
 
   @override
@@ -217,6 +234,32 @@ class _DashboardContent extends StatelessWidget {
           icon: Icons.receipt_long_rounded,
           label: 'Payment Verification',
           onTap: onPaymentsTap,
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _ActionCard(
+                icon: Icons.emoji_events_outlined,
+                label: 'Tournaments',
+                onTap: onTournamentsTap,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _ActionCard(
+                icon: Icons.storefront_outlined,
+                label: 'Market',
+                onTap: onMarketTap,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        _ActionCard(
+          icon: Icons.verified_user_outlined,
+          label: 'Skill Level Requests',
+          onTap: onSkillRequestsTap,
         ),
       ],
     );

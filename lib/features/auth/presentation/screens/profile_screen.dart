@@ -108,7 +108,7 @@ class _ProfileContentState extends State<_ProfileContent> {
                         Row(
                           children: [
                             Text(
-                              _skillLevel.toStringAsFixed(1),
+                              user.skillLevel.toStringAsFixed(1),
                               style: TextStyle(
                                 color: AppColors.primary,
                                 fontSize: 22,
@@ -116,25 +116,59 @@ class _ProfileContentState extends State<_ProfileContent> {
                               ),
                             ),
                             const SizedBox(width: 8),
-                            Text(_skillLabel(_skillLevel),
+                            Text(_skillLabel(user.skillLevel),
                                 style: Theme.of(context).textTheme.bodyMedium),
                           ],
                         ),
-                        SliderTheme(
-                          data: SliderThemeData(
-                            activeTrackColor: AppColors.primary,
-                            thumbColor: AppColors.primary,
-                            inactiveTrackColor: AppColors.divider,
-                            overlayColor: AppColors.primary.withValues(alpha: 0.12),
+                        if (user.pendingSkillLevel != null) ...[
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: AppColors.warning.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.hourglass_top_rounded, size: 14, color: AppColors.warning),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Request pending admin review: ${user.pendingSkillLevel!.toStringAsFixed(1)}',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.warning,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                          child: Slider(
-                            value: _skillLevel,
-                            min: AppConstants.minSkillLevel,
-                            max: AppConstants.maxSkillLevel,
-                            divisions: 12,
-                            onChanged: (v) => setState(() => _skillLevel = v),
+                        ] else ...[
+                          SliderTheme(
+                            data: SliderThemeData(
+                              activeTrackColor: AppColors.primary,
+                              thumbColor: AppColors.primary,
+                              inactiveTrackColor: AppColors.divider,
+                              overlayColor: AppColors.primary.withValues(alpha: 0.12),
+                            ),
+                            child: Slider(
+                              value: _skillLevel,
+                              min: AppConstants.minSkillLevel,
+                              max: AppConstants.maxSkillLevel,
+                              divisions: 12,
+                              onChanged: (v) => setState(() => _skillLevel = v),
+                            ),
                           ),
-                        ),
+                          if (_skillLevel != user.skillLevel)
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: TextButton(
+                                onPressed: _requestSkillLevel,
+                                child: const Text('Request Verification'),
+                              ),
+                            ),
+                        ],
                       ],
                     ),
                   ),
@@ -168,7 +202,7 @@ class _ProfileContentState extends State<_ProfileContent> {
                   const SizedBox(height: 16),
 
                   // Admin card
-                  if (user.isAdmin) ...[
+                  if (user.hasAdminAccess) ...[
                     _buildAdminCard(context),
                     const SizedBox(height: 16),
                   ],
@@ -577,11 +611,17 @@ class _ProfileContentState extends State<_ProfileContent> {
 
   void _saveChanges() {
     context.read<AuthBloc>().add(AuthProfileUpdated(
-          skillLevel: _skillLevel,
           preferredSide: _preferredSide,
         ));
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Profile updated')),
+    );
+  }
+
+  void _requestSkillLevel() {
+    context.read<AuthBloc>().add(RequestSkillLevelChange(_skillLevel));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Skill level change submitted for admin review')),
     );
   }
 

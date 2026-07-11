@@ -14,6 +14,10 @@ class CourtModel {
   final bool isActive;
   final String? maintenanceNote;
   final List<DateTime> blockedDates;
+  // Scoped single-court admin, denormalised here for display without an
+  // extra user lookup (mirrors venueName/courtName denormalisation elsewhere).
+  final String? courtAdminId;
+  final String? courtAdminEmail;
 
   const CourtModel({
     required this.id,
@@ -29,6 +33,8 @@ class CourtModel {
     this.isActive = true,
     this.maintenanceNote,
     this.blockedDates = const [],
+    this.courtAdminId,
+    this.courtAdminEmail,
   });
 
   double priceForHour(int hour) =>
@@ -70,6 +76,8 @@ class CourtModel {
       isActive: json['isActive'] as bool? ?? true,
       maintenanceNote: json['maintenanceNote'] as String?,
       blockedDates: blocked,
+      courtAdminId: json['courtAdminId'] as String?,
+      courtAdminEmail: json['courtAdminEmail'] as String?,
     );
   }
 
@@ -89,6 +97,8 @@ class CourtModel {
         'blockedDates': blockedDates
             .map((d) => Timestamp.fromDate(d))
             .toList(),
+        'courtAdminId': courtAdminId,
+        'courtAdminEmail': courtAdminEmail,
       };
 
   CourtModel copyWith({
