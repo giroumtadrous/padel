@@ -54,9 +54,11 @@ class AppRouter {
         }
 
         final isAuthenticated = authState is AuthAuthenticated;
+        final homeRoute =
+            isAuthenticated && authState.user.hasAdminAccess ? '/admin' : '/venues';
         if (!isAuthenticated && !isAuthRoute) return '/login';
-        if (isAuthenticated && isAuthRoute) return '/venues';
-        if (loc == '/splash') return isAuthenticated ? '/venues' : '/login';
+        if (isAuthenticated && isAuthRoute) return homeRoute;
+        if (loc == '/splash') return isAuthenticated ? homeRoute : '/login';
 
         if (authState is AuthAuthenticated) {
           // Phone verification is suggested for every provider (email/Google/
@@ -69,6 +71,14 @@ class AppRouter {
           }
 
           if (loc.startsWith('/admin') && !authState.user.hasAdminAccess) return '/venues';
+
+          // Admins only get the Dashboard + Profile tabs — no player-facing
+          // browsing surfaces.
+          final isPlayerOnlyRoute = loc.startsWith('/venues') ||
+              loc.startsWith('/matches') ||
+              loc.startsWith('/tournaments') ||
+              loc.startsWith('/market');
+          if (isPlayerOnlyRoute && authState.user.hasAdminAccess) return '/admin';
         }
 
         return null;
@@ -133,55 +143,6 @@ class AppRouter {
         GoRoute(
           path: '/wallet',
           builder: (_, __) => const WalletScreen(),
-        ),
-        GoRoute(
-          path: '/admin',
-          builder: (_, __) => const AdminDashboardScreen(),
-          routes: [
-            GoRoute(
-              path: 'courts',
-              builder: (_, state) => ManageCourtsScreen(
-                venueId: state.uri.queryParameters['venueId'] ?? '',
-              ),
-            ),
-            GoRoute(
-              path: 'revenue',
-              builder: (_, state) => RevenueScreen(
-                venueId: state.uri.queryParameters['venueId'] ?? '',
-              ),
-            ),
-            GoRoute(
-              path: 'payments',
-              builder: (_, state) => PaymentVerificationScreen(
-                venueId: state.uri.queryParameters['venueId'] ?? '',
-              ),
-            ),
-            GoRoute(
-              path: 'tournaments',
-              builder: (_, __) => const ManageTournamentsScreen(),
-            ),
-            GoRoute(
-              path: 'market',
-              builder: (_, __) => const ManageMarketScreen(),
-            ),
-            GoRoute(
-              path: 'skill-requests',
-              builder: (_, __) => const SkillRequestsScreen(),
-            ),
-            GoRoute(
-              path: 'reviews',
-              builder: (_, state) => VenueReviewsScreen(
-                venueId: state.uri.queryParameters['venueId'] ?? '',
-              ),
-            ),
-            GoRoute(
-              path: 'user/:userId',
-              builder: (_, state) => UserProfileViewScreen(
-                userId: state.pathParameters['userId']!,
-                venueId: state.uri.queryParameters['venueId'] ?? '',
-              ),
-            ),
-          ],
         ),
         StatefulShellRoute.indexedStack(
           builder: (_, __, shell) => MainShell(navigationShell: shell),
@@ -248,6 +209,59 @@ class AppRouter {
                 GoRoute(
                   path: '/market',
                   builder: (_, __) => const MarketScreen(),
+                ),
+              ],
+            ),
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: '/admin',
+                  builder: (_, __) => const AdminDashboardScreen(),
+                  routes: [
+                    GoRoute(
+                      path: 'courts',
+                      builder: (_, state) => ManageCourtsScreen(
+                        venueId: state.uri.queryParameters['venueId'] ?? '',
+                      ),
+                    ),
+                    GoRoute(
+                      path: 'revenue',
+                      builder: (_, state) => RevenueScreen(
+                        venueId: state.uri.queryParameters['venueId'] ?? '',
+                      ),
+                    ),
+                    GoRoute(
+                      path: 'payments',
+                      builder: (_, state) => PaymentVerificationScreen(
+                        venueId: state.uri.queryParameters['venueId'] ?? '',
+                      ),
+                    ),
+                    GoRoute(
+                      path: 'tournaments',
+                      builder: (_, __) => const ManageTournamentsScreen(),
+                    ),
+                    GoRoute(
+                      path: 'market',
+                      builder: (_, __) => const ManageMarketScreen(),
+                    ),
+                    GoRoute(
+                      path: 'skill-requests',
+                      builder: (_, __) => const SkillRequestsScreen(),
+                    ),
+                    GoRoute(
+                      path: 'reviews',
+                      builder: (_, state) => VenueReviewsScreen(
+                        venueId: state.uri.queryParameters['venueId'] ?? '',
+                      ),
+                    ),
+                    GoRoute(
+                      path: 'user/:userId',
+                      builder: (_, state) => UserProfileViewScreen(
+                        userId: state.pathParameters['userId']!,
+                        venueId: state.uri.queryParameters['venueId'] ?? '',
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

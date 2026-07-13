@@ -73,7 +73,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Admin Dashboard'),
-        leading: BackButton(onPressed: () => context.go('/profile')),
+        automaticallyImplyLeading: false,
         actions: [
           IconButton(
             onPressed: () => _pickDate(),

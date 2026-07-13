@@ -18,15 +18,8 @@ class MainShell extends StatelessWidget {
 
         return Scaffold(
           body: navigationShell,
-          floatingActionButton: isAdmin
-              ? FloatingActionButton.small(
-                  onPressed: () => context.go('/admin'),
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  child: const Icon(Icons.admin_panel_settings_rounded, size: 20),
-                )
-              : null,
           bottomNavigationBar: _BottomNav(
+            isAdmin: isAdmin,
             currentIndex: navigationShell.currentIndex,
             onTap: (i) => navigationShell.goBranch(
               i,
@@ -39,14 +32,87 @@ class MainShell extends StatelessWidget {
   }
 }
 
+// Branch indices, fixed by the StatefulShellRoute order in app_router.dart.
+const _kVenuesBranch = 0;
+const _kMatchesBranch = 1;
+const _kTournamentsBranch = 2;
+const _kMarketBranch = 3;
+const _kAdminBranch = 4;
+const _kProfileBranch = 5;
+
 class _BottomNav extends StatelessWidget {
+  final bool isAdmin;
   final int currentIndex;
   final ValueChanged<int> onTap;
 
-  const _BottomNav({required this.currentIndex, required this.onTap});
+  const _BottomNav({required this.isAdmin, required this.currentIndex, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
+    // Admins only ever manage their venue/courts — no player-facing browsing
+    // tabs (Home, Matches, Tournaments, Market).
+    final items = isAdmin
+        ? [
+            _NavItem(
+              icon: Icons.dashboard_outlined,
+              activeIcon: Icons.dashboard_rounded,
+              label: 'Dashboard',
+              index: _kAdminBranch,
+              currentIndex: currentIndex,
+              onTap: onTap,
+            ),
+            _NavItem(
+              icon: Icons.person_outline_rounded,
+              activeIcon: Icons.person_rounded,
+              label: 'Profile',
+              index: _kProfileBranch,
+              currentIndex: currentIndex,
+              onTap: onTap,
+            ),
+          ]
+        : [
+            _NavItem(
+              icon: Icons.home_rounded,
+              activeIcon: Icons.home_rounded,
+              label: 'Home',
+              index: _kVenuesBranch,
+              currentIndex: currentIndex,
+              onTap: onTap,
+            ),
+            _NavItem(
+              icon: Icons.group_outlined,
+              activeIcon: Icons.group_rounded,
+              label: 'Matches',
+              index: _kMatchesBranch,
+              currentIndex: currentIndex,
+              onTap: onTap,
+            ),
+            _NavItem(
+              icon: Icons.emoji_events_outlined,
+              activeIcon: Icons.emoji_events_rounded,
+              label: 'Tournaments',
+              index: _kTournamentsBranch,
+              currentIndex: currentIndex,
+              onTap: onTap,
+            ),
+            _NavItem(
+              icon: Icons.storefront_outlined,
+              activeIcon: Icons.storefront_rounded,
+              label: 'Market',
+              index: _kMarketBranch,
+              currentIndex: currentIndex,
+              onTap: onTap,
+            ),
+            _NavItem(
+              icon: Icons.person_outline_rounded,
+              activeIcon: Icons.person_rounded,
+              label: 'Profile',
+              index: _kProfileBranch,
+              currentIndex: currentIndex,
+              onTap: onTap,
+            ),
+          ];
+
     return Container(
       decoration: const BoxDecoration(
         color: AppColors.surface,
@@ -56,58 +122,7 @@ class _BottomNav extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 6),
           child: Row(
-            children: [
-              Expanded(
-                child: _NavItem(
-                  icon: Icons.home_rounded,
-                  activeIcon: Icons.home_rounded,
-                  label: 'Home',
-                  index: 0,
-                  currentIndex: currentIndex,
-                  onTap: onTap,
-                ),
-              ),
-              Expanded(
-                child: _NavItem(
-                  icon: Icons.group_outlined,
-                  activeIcon: Icons.group_rounded,
-                  label: 'Matches',
-                  index: 1,
-                  currentIndex: currentIndex,
-                  onTap: onTap,
-                ),
-              ),
-              Expanded(
-                child: _NavItem(
-                  icon: Icons.emoji_events_outlined,
-                  activeIcon: Icons.emoji_events_rounded,
-                  label: 'Tournaments',
-                  index: 2,
-                  currentIndex: currentIndex,
-                  onTap: onTap,
-                ),
-              ),
-              Expanded(
-                child: _NavItem(
-                  icon: Icons.storefront_outlined,
-                  activeIcon: Icons.storefront_rounded,
-                  label: 'Market',
-                  index: 3,
-                  currentIndex: currentIndex,
-                  onTap: onTap,
-                ),
-              ),
-              Expanded(
-                child: _NavItem(
-                  icon: Icons.person_outline_rounded,
-                  activeIcon: Icons.person_rounded,
-                  label: 'Profile',
-                  index: 4,
-                  currentIndex: currentIndex,
-                  onTap: onTap,
-                ),
-              ),
-            ],
+            children: items.map((item) => Expanded(child: item)).toList(),
           ),
         ),
       ),

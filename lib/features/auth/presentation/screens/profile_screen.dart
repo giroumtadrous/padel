@@ -206,12 +206,6 @@ class _ProfileContentState extends State<_ProfileContent> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Admin card
-                  if (user.hasAdminAccess) ...[
-                    _buildAdminCard(context),
-                    const SizedBox(height: 16),
-                  ],
-
                   // Save button
                   AppButton(
                     label: 'Save Changes',
@@ -563,53 +557,6 @@ class _ProfileContentState extends State<_ProfileContent> {
           const SizedBox(height: 12),
           child,
         ],
-      ),
-    );
-  }
-
-  Widget _buildAdminCard(BuildContext context) {
-    return GestureDetector(
-      onTap: () => context.go('/admin'),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              AppColors.navy,
-              AppColors.secondary.withValues(alpha: 0.8),
-            ],
-          ),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.admin_panel_settings_rounded,
-                color: AppColors.textOnDark),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Admin Dashboard',
-                    style: TextStyle(
-                      color: AppColors.textOnDark,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14,
-                    ),
-                  ),
-                  const Text(
-                    'Manage courts & view revenue',
-                    style: TextStyle(color: AppColors.textBlueGrey, fontSize: 12),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(Icons.arrow_forward_ios_rounded,
-                size: 14, color: AppColors.textBlueGrey),
-          ],
-        ),
       ),
     );
   }
