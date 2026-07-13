@@ -131,7 +131,7 @@ class BookingService {
     required DateTime date,
     required int openingHour,
     required int closingHour,
-    int durationMinutes = 60,
+    int durationMinutes = 30,
   }) async {
     final dateStr = _dateFmt.format(date);
 

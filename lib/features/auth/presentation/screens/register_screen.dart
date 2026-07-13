@@ -20,8 +20,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
-  double _skillLevel = 3.0;
+  double _skillLevel = _skillLevels['Intermediate']!;
   String _preferredSide = AppConstants.sideForerhand;
+
+  static const _skillLevels = {
+    'Beginner': 1.5,
+    'Intermediate': 3.5,
+    'Advanced': 5.0,
+    'Expert': 6.5,
+  };
   bool _obscure = true;
 
   @override
@@ -117,28 +124,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 const SizedBox(height: 28),
                 Text('Skill Level', style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: 4),
-                Text(
-                  '${_skillLevel.toStringAsFixed(1)} — ${_skillLabel(_skillLevel)}',
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodyMedium
-                      ?.copyWith(color: AppColors.primary),
-                ),
-                SliderTheme(
-                  data: SliderThemeData(
-                    activeTrackColor: AppColors.primary,
-                    thumbColor: AppColors.primary,
-                    inactiveTrackColor: AppColors.divider,
-                    overlayColor: AppColors.primary.withOpacity(0.12),
-                  ),
-                  child: Slider(
-                    value: _skillLevel,
-                    min: AppConstants.minSkillLevel,
-                    max: AppConstants.maxSkillLevel,
-                    divisions: 12,
-                    onChanged: (v) => setState(() => _skillLevel = v),
-                  ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: _skillLevels.entries.map((entry) {
+                    return _SideChip(
+                      label: entry.key,
+                      isSelected: _skillLevel == entry.value,
+                      onTap: () => setState(() => _skillLevel = entry.value),
+                    );
+                  }).toList(),
                 ),
                 const SizedBox(height: 20),
                 Text('Preferred Side', style: Theme.of(context).textTheme.titleMedium),
@@ -146,13 +142,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 Row(
                   children: [
                     _SideChip(
-                      label: 'Forehand',
+                      label: 'Right Side',
                       isSelected: _preferredSide == AppConstants.sideForerhand,
                       onTap: () => setState(() => _preferredSide = AppConstants.sideForerhand),
                     ),
                     const SizedBox(width: 12),
                     _SideChip(
-                      label: 'Backhand',
+                      label: 'Left Side',
                       isSelected: _preferredSide == AppConstants.sideBackhand,
                       onTap: () => setState(() => _preferredSide = AppConstants.sideBackhand),
                     ),
@@ -172,15 +168,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
       ),
     );
-  }
-
-  String _skillLabel(double level) {
-    if (level < 2.0) return 'Beginner';
-    if (level < 3.0) return 'Novice';
-    if (level < 4.0) return 'Intermediate';
-    if (level < 5.0) return 'Advanced';
-    if (level < 6.0) return 'Expert';
-    return 'Professional';
   }
 }
 

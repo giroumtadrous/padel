@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:padel/core/constants/app_constants.dart';
+import 'package:padel/features/auth/data/models/user_model.dart';
 import 'package:padel/features/booking/data/models/booking_model.dart';
 import 'package:padel/features/venues/data/models/court_model.dart';
 import 'package:padel/features/venues/data/models/venue_model.dart';
@@ -240,5 +241,24 @@ class AdminService {
               .length;
           return {'booked': booked, 'total': total};
         });
+  }
+
+  Future<UserModel?> getUserProfile(String uid) async {
+    final snap = await _db.collection(AppConstants.usersCollection).doc(uid).get();
+    if (!snap.exists) return null;
+    return UserModel.fromJson(snap.data()!);
+  }
+
+  /// Most recent bookings [uid] has made at [venueId] — gives the admin quick
+  /// context on a customer without exposing their activity at other venues.
+  Future<List<BookingModel>> getUserBookingsAtVenue(String uid, String venueId) async {
+    final snap = await _db
+        .collection(AppConstants.bookingsCollection)
+        .where('userId', isEqualTo: uid)
+        .where('venueId', isEqualTo: venueId)
+        .orderBy('startTime', descending: true)
+        .limit(10)
+        .get();
+    return snap.docs.map((d) => BookingModel.fromJson({...d.data(), 'id': d.id})).toList();
   }
 }

@@ -313,7 +313,15 @@ class _VenuesListScreenState extends State<VenuesListScreen> {
           final sport = sports[i];
           final selected = sport == _selectedSport;
           return GestureDetector(
-            onTap: () => setState(() => _selectedSport = sport),
+            onTap: () {
+              if (sport != 'Padel') {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('$sport — Coming Soon')),
+                );
+                return;
+              }
+              setState(() => _selectedSport = sport);
+            },
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),

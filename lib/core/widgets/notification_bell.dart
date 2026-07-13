@@ -84,7 +84,7 @@ class NotificationBell extends StatelessWidget {
                     onTap: () {
                       if (!n.read) repo.markRead(n.id);
                       Navigator.pop(context);
-                      if (n.bookingId != null) context.go('/bookings');
+                      if (n.bookingId != null) context.go('/profile');
                     },
                   );
                 },

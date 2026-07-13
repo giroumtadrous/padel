@@ -294,7 +294,7 @@ class BookingSuccessScreen extends StatelessWidget {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () => context.go('/bookings'),
+                  onPressed: () => context.go('/profile'),
                   child: const Text('View My Bookings'),
                 ),
               ),

@@ -14,21 +14,23 @@ import 'package:padel/features/booking/presentation/bloc/booking_bloc.dart';
 import 'package:padel/features/booking/presentation/bloc/booking_event.dart';
 import 'package:padel/features/booking/presentation/bloc/booking_state.dart';
 
-class BookingHistoryScreen extends StatefulWidget {
-  const BookingHistoryScreen({super.key});
+/// Embeddable "My Bookings" section — lives inline in ProfileScreen rather
+/// than as its own page/tab. Uses a simple toggle instead of TabController
+/// since it's hosted inside ProfileScreen's own CustomScrollView, where a
+/// TabBarView's unbounded height doesn't work.
+class BookingsSection extends StatefulWidget {
+  const BookingsSection({super.key});
 
   @override
-  State<BookingHistoryScreen> createState() => _BookingHistoryScreenState();
+  State<BookingsSection> createState() => _BookingsSectionState();
 }
 
-class _BookingHistoryScreenState extends State<BookingHistoryScreen>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _BookingsSectionState extends State<BookingsSection> {
+  int _selectedTab = 0;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
     _loadHistory();
   }
 
@@ -40,61 +42,90 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen>
   }
 
   @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('My Bookings', style: Theme.of(context).textTheme.headlineMedium),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            _BookingsToggle(
+              label: 'Upcoming',
+              isSelected: _selectedTab == 0,
+              onTap: () => setState(() => _selectedTab = 0),
+            ),
+            const SizedBox(width: 10),
+            _BookingsToggle(
+              label: 'Past',
+              isSelected: _selectedTab == 1,
+              onTap: () => setState(() => _selectedTab = 1),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        BlocBuilder<BookingBloc, BookingState>(
+          builder: (context, state) {
+            if (state is BookingHistoryLoading) {
+              return const ShimmerList(itemCount: 2);
+            }
+            if (state is BookingError) {
+              return AppErrorView(message: state.message, onRetry: _loadHistory);
+            }
+            if (state is BookingHistoryLoaded) {
+              final authState = context.read<AuthBloc>().state;
+              final userId = authState is AuthAuthenticated ? authState.user.uid : '';
+
+              return _selectedTab == 0
+                  ? _BookingList(
+                      bookings: state.upcoming,
+                      emptyTitle: 'No upcoming bookings',
+                      emptySubtitle: 'Book a court to get started',
+                      showCancel: true,
+                      userId: userId,
+                    )
+                  : _BookingList(
+                      bookings: state.past,
+                      emptyTitle: 'No past bookings',
+                      emptySubtitle: 'Your completed games will appear here',
+                      showRate: true,
+                      userId: userId,
+                    );
+            }
+            return const SizedBox.shrink();
+          },
+        ),
+      ],
+    );
   }
+}
+
+class _BookingsToggle extends StatelessWidget {
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _BookingsToggle({required this.label, required this.isSelected, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('My Bookings'),
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: AppColors.primary,
-          unselectedLabelColor: AppColors.textSecondary,
-          indicatorColor: AppColors.primary,
-          indicatorWeight: 2,
-          tabs: const [
-            Tab(text: 'Upcoming'),
-            Tab(text: 'Past'),
-          ],
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primary : AppColors.card,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: isSelected ? AppColors.primary : AppColors.divider),
         ),
-      ),
-      body: BlocBuilder<BookingBloc, BookingState>(
-        builder: (context, state) {
-          if (state is BookingHistoryLoading) return const ShimmerList();
-          if (state is BookingError) {
-            return AppErrorView(message: state.message, onRetry: _loadHistory);
-          }
-          if (state is BookingHistoryLoaded) {
-            final authState = context.read<AuthBloc>().state;
-            final userId = authState is AuthAuthenticated ? authState.user.uid : '';
-
-            return TabBarView(
-              controller: _tabController,
-              children: [
-                _BookingList(
-                  bookings: state.upcoming,
-                  emptyTitle: 'No upcoming bookings',
-                  emptySubtitle: 'Book a court to get started',
-                  showCancel: true,
-                  userId: userId,
-                ),
-                _BookingList(
-                  bookings: state.past,
-                  emptyTitle: 'No past bookings',
-                  emptySubtitle: 'Your completed games will appear here',
-                  showRate: true,
-                  userId: userId,
-                ),
-              ],
-            );
-          }
-          return const SizedBox.shrink();
-        },
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : AppColors.textSecondary,
+            fontSize: 13,
+            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
+          ),
+        ),
       ),
     );
   }
@@ -128,7 +159,9 @@ class _BookingList extends StatelessWidget {
     }
 
     return ListView.separated(
-      padding: const EdgeInsets.all(16),
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      padding: EdgeInsets.zero,
       itemCount: bookings.length,
       separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (_, i) => _BookingCard(

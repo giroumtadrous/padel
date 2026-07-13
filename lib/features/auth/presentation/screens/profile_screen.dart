@@ -6,6 +6,7 @@ import 'package:padel/core/constants/app_constants.dart';
 import 'package:padel/core/widgets/app_button.dart';
 import 'package:padel/core/widgets/app_loading.dart';
 import 'package:padel/features/auth/data/models/user_model.dart';
+import 'package:padel/features/booking/presentation/screens/booking_history_screen.dart';
 import 'package:padel/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:padel/features/auth/presentation/bloc/auth_event.dart';
 import 'package:padel/features/auth/presentation/bloc/auth_state.dart';
@@ -74,6 +75,10 @@ class _ProfileContentState extends State<_ProfileContent> {
 
                   // Wallet card
                   _buildWalletCard(context, user),
+                  const SizedBox(height: 16),
+
+                  // Bookings — merged in from the old dedicated /bookings tab
+                  const BookingsSection(),
                   const SizedBox(height: 16),
 
                   if (!user.phoneVerified) ...[
@@ -182,7 +187,7 @@ class _ProfileContentState extends State<_ProfileContent> {
                     child: Row(
                       children: [
                         _SideOption(
-                          label: 'Forehand',
+                          label: 'Right Side',
                           icon: Icons.arrow_forward_rounded,
                           isSelected: _preferredSide == AppConstants.sideForerhand,
                           onTap: () => setState(
@@ -190,7 +195,7 @@ class _ProfileContentState extends State<_ProfileContent> {
                         ),
                         const SizedBox(width: 12),
                         _SideOption(
-                          label: 'Backhand',
+                          label: 'Left Side',
                           icon: Icons.arrow_back_rounded,
                           isSelected: _preferredSide == AppConstants.sideBackhand,
                           onTap: () => setState(
@@ -354,7 +359,7 @@ class _ProfileContentState extends State<_ProfileContent> {
         _StatBox(value: user.skillLevel.toStringAsFixed(1), label: 'Skill'),
         _StatBox(value: '${user.matchesPlayed}', label: 'Matches'),
         _StatBox(
-            value: user.preferredSide == AppConstants.sideForerhand ? 'FH' : 'BH',
+            value: user.preferredSide == AppConstants.sideForerhand ? 'R' : 'L',
             label: 'Side'),
         _StatBox(
             value: '${user.favoriteVenueIds.length}', label: 'Favorites'),

@@ -413,7 +413,7 @@ class _VenueDetailScreenState extends State<VenueDetailScreen> {
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Table(
-                defaultColumnWidth: const FixedColumnWidth(92),
+                defaultColumnWidth: const FixedColumnWidth(116),
                 children: [
                   TableRow(
                     children: courts
@@ -454,7 +454,7 @@ class _VenueDetailScreenState extends State<VenueDetailScreen> {
     }
 
     if (slot == null) {
-      return const Padding(padding: EdgeInsets.all(3), child: SizedBox(height: 40));
+      return const Padding(padding: EdgeInsets.all(4), child: SizedBox(height: 54));
     }
 
     final isSelected = _selectedSlots.any((s) => s.id == slot!.id);
@@ -478,15 +478,15 @@ class _VenueDetailScreenState extends State<VenueDetailScreen> {
     }
 
     return Padding(
-      padding: const EdgeInsets.all(3),
+      padding: const EdgeInsets.all(4),
       child: GestureDetector(
         onTap: isUnavailable ? null : () => _toggleSlot(court, slot!),
         child: Container(
-          height: 40,
-          padding: const EdgeInsets.symmetric(horizontal: 6),
+          height: 54,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
           decoration: BoxDecoration(
             color: bgColor,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(10),
             border: Border.all(
               color: isSelected ? AppColors.primary : AppColors.divider,
             ),
@@ -496,12 +496,12 @@ class _VenueDetailScreenState extends State<VenueDetailScreen> {
             children: [
               Text(
                 _timeFmt.format(slot.startTime),
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: textColor),
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: textColor),
               ),
               Text(
                 slot.price.toInt().toString(),
                 style: TextStyle(
-                  fontSize: 9,
+                  fontSize: 11,
                   fontWeight: FontWeight.w500,
                   color: isSelected ? Colors.white70 : AppColors.textHint,
                 ),
