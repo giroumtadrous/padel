@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
@@ -20,10 +22,40 @@
 	<string>$(FLUTTER_BUILD_NAME)</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.297754277020-a9dle8q3q0n17o8l33fg9qks21j7bde5</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>FirebaseAppDelegateProxyEnabled</key>
+	<true/>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Padel needs camera access to take a photo of your payment transfer receipt.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Padel uses your location to find padel courts near you.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Padel needs photo access to upload your payment transfer receipt.</string>
+	<key>NSUserNotificationUsageDescription</key>
+	<string>Padel uses notifications to keep you updated on your bookings.</string>
+	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<true/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>remote-notification</string>
+	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
@@ -40,41 +72,6 @@
 		<string>UIInterfaceOrientationPortraitUpsideDown</string>
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
-	</array>
-	<key>CADisableMinimumFrameDurationOnPhone</key>
-	<true/>
-	<key>UIApplicationSupportsIndirectInputEvents</key>
-	<true/>
-
-	<key>FirebaseAppDelegateProxyEnabled</key>
-	<true/>
-	<key>NSUserNotificationUsageDescription</key>
-	<string>Padel uses notifications to keep you updated on your bookings.</string>
-	<key>NSCameraUsageDescription</key>
-	<string>Padel needs camera access to take a photo of your payment transfer receipt.</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Padel needs photo access to upload your payment transfer receipt.</string>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Padel uses your location to find padel courts near you.</string>
-
-	<key>UIBackgroundModes</key>
-	<array>
-		<string>fetch</string>
-		<string>remote-notification</string>
-	</array>
-
-	<key>ITSAppUsesNonExemptEncryption</key>
-	<false/>
-	<key>CFBundleURLTypes</key>
-	<array>
-		<dict>
-			<key>CFBundleTypeRole</key>
-			<string>Editor</string>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>com.googleusercontent.apps.297754277020-a9dle8q3q0n17o8l33fg9qks21j7bde5</string>
-			</array>
-		</dict>
 	</array>
 </dict>
 </plist>
