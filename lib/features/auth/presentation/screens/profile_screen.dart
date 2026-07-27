@@ -11,6 +11,7 @@ import 'package:padel/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:padel/features/auth/presentation/bloc/auth_event.dart';
 import 'package:padel/features/auth/presentation/bloc/auth_state.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -88,6 +89,9 @@ class _ProfileContentState extends State<_ProfileContent> {
 
                   // Loyalty card
                   _buildLoyaltyCard(context, user),
+                  const SizedBox(height: 16),
+
+                  _buildAppInfoSection(context),
                   const SizedBox(height: 16),
 
                   // Favorites
@@ -523,6 +527,65 @@ class _ProfileContentState extends State<_ProfileContent> {
     );
   }
 
+  Widget _buildAppInfoSection(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.info_outline_rounded, color: AppColors.secondary, size: 16),
+              SizedBox(width: 8),
+              Text(
+                'App Info',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _AppInfoTile(
+            icon: Icons.privacy_tip_outlined,
+            title: 'Privacy Policy',
+            subtitle: 'Read how we handle your data',
+            onTap: _openPrivacyPolicy,
+          ),
+          _AppInfoTile(
+            icon: Icons.support_agent_rounded,
+            title: 'Help & Support',
+            subtitle: 'Get help with bookings, payments, and account issues',
+            onTap: () => context.push('/help-support'),
+          ),
+          _AppInfoTile(
+            icon: Icons.info_rounded,
+            title: 'About ${AppConstants.appName}',
+            subtitle: 'Learn more about the app',
+            onTap: () => context.push('/about'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _openPrivacyPolicy() async {
+    final uri = Uri.parse('https://www.termsfeed.com/live/b26df785-a9b2-4ad7-9505-81935b1ee08f');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      await launchUrl(uri);
+    }
+  }
+
   Widget _buildSection({
     required String title,
     required IconData icon,
@@ -666,6 +729,32 @@ class _SideOption extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _AppInfoTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _AppInfoTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      onTap: onTap,
+      leading: Icon(icon, color: AppColors.primary),
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+      subtitle: Text(subtitle),
+      trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textHint),
     );
   }
 }

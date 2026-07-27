@@ -42,9 +42,17 @@ class AuthRegister extends AuthEvent {
   final String email;
   final String password;
   final String displayName;
-  const AuthRegister({required this.email, required this.password, required this.displayName});
+  final double skillLevel;
+  final String preferredSide;
+  const AuthRegister({
+    required this.email,
+    required this.password,
+    required this.displayName,
+    required this.skillLevel,
+    required this.preferredSide,
+  });
   @override
-  List<Object?> get props => [email, password, displayName];
+  List<Object?> get props => [email, password, displayName, skillLevel, preferredSide];
 }
 
 class AuthLoggedOut extends AuthEvent {
@@ -55,9 +63,15 @@ class AuthProfileUpdated extends AuthEvent {
   final String? displayName;
   final String? preferredSide;
   final String? phone;
-  const AuthProfileUpdated({this.displayName, this.preferredSide, this.phone});
+  final double? skillLevel;
+  const AuthProfileUpdated({
+    this.displayName,
+    this.preferredSide,
+    this.phone,
+    this.skillLevel,
+  });
   @override
-  List<Object?> get props => [displayName, preferredSide, phone];
+  List<Object?> get props => [displayName, preferredSide, phone, skillLevel];
 }
 
 /// Submits a skill-level change for admin review — does not change

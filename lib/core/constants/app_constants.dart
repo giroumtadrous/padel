@@ -1,5 +1,5 @@
 class AppConstants {
-  static const String appName = 'PadelPro';
+  static const String appName = 'Malaaby';
 
   static const List<int> slotDurations = [60, 90, 120];
   static const double minSkillLevel = 1.0;

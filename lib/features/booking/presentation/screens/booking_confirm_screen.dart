@@ -37,7 +37,7 @@ class _BookingConfirmScreenState extends State<BookingConfirmScreen> {
   bool _openToMatchmaking = false;
   double _minSkill = 1.0;
   double _maxSkill = 7.0;
-  String _selectedPayment = AppConstants.paymentCard;
+  String _selectedPayment = AppConstants.paymentVodafone;
 
   final PaymentProofStorageService _proofStorage = PaymentProofStorageService.instance;
   XFile? _proofImage;
@@ -121,8 +121,10 @@ class _BookingConfirmScreenState extends State<BookingConfirmScreen> {
         final double displayPrice = hasLoyaltyDiscount
             ? held.totalPrice * (1 - AppConstants.loyaltyDiscountPercent)
             : held.totalPrice;
-        final double depositAmount = AppConstants.depositPerHour * (held.durationMinutes / 60.0);
-        final double cashDueAmount = displayPrice;
+        final double halfPrice = displayPrice / 2.0;
+        final double hourlyDeposit = AppConstants.depositPerHour * (held.durationMinutes / 60.0);
+        final double depositAmount = halfPrice + hourlyDeposit;
+        final double cashDueAmount = displayPrice - halfPrice;
         final bool walletSufficient =
             (user?.walletBalance ?? 0) >= depositAmount;
 
@@ -267,10 +269,10 @@ class _BookingConfirmScreenState extends State<BookingConfirmScreen> {
 
   Widget _buildPaymentSection(double walletBalance, bool walletSufficient) {
     final methods = [
-      (AppConstants.paymentCard, Icons.credit_card_rounded, 'Card (Visa / MC)'),
-      (AppConstants.paymentVodafone, Icons.phone_android_rounded, 'Vodafone Cash'),
-      (AppConstants.paymentFawry, Icons.account_balance_rounded, 'Fawry'),
-      (AppConstants.paymentInstaPay, Icons.send_rounded, 'InstaPay'),
+      (AppConstants.paymentVodafone, Icons.phone_android_rounded, 'Vodafone Cash', false, null),
+      (AppConstants.paymentInstaPay, Icons.send_rounded, 'InstaPay', false, null),
+      (AppConstants.paymentCard, Icons.credit_card_rounded, 'Card (Visa / MC)', true, const Text('Coming soon', style: TextStyle(color: AppColors.textHint, fontSize: 11))),
+      (AppConstants.paymentFawry, Icons.account_balance_rounded, 'Fawry', true, const Text('Coming soon', style: TextStyle(color: AppColors.textHint, fontSize: 11))),
     ];
 
     return Column(
@@ -299,6 +301,8 @@ class _BookingConfirmScreenState extends State<BookingConfirmScreen> {
                   icon: m.$2,
                   label: m.$3,
                   isSelected: isSelected,
+                  disabled: m.$4,
+                  suffix: m.$5,
                   onTap: () => setState(() => _selectedPayment = m.$1),
                 );
               }),
@@ -322,6 +326,33 @@ class _BookingConfirmScreenState extends State<BookingConfirmScreen> {
             ],
           ),
         ),
+        if (_isManualPayment) ...[
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.secondary.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppColors.secondary.withOpacity(0.2)),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.info_outline_rounded, color: AppColors.secondary, size: 18),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Please send the money to the number the admin assigns to his court, then upload the screenshot below.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ],
     );
   }

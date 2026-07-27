@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:padel/core/constants/app_colors.dart';
 import 'package:padel/core/widgets/app_error_view.dart';
 import 'package:padel/core/widgets/app_loading.dart';
 import 'package:padel/features/admin/data/services/admin_service.dart';
+import 'package:padel/features/auth/data/models/user_model.dart';
 import 'package:padel/features/booking/data/models/booking_model.dart';
 import 'package:padel/features/venues/data/models/court_model.dart';
 
@@ -203,7 +205,11 @@ class _DashboardBody extends StatelessWidget {
                       icon: Icons.calendar_today_rounded,
                     )
                   else
-                    ...bookings.map((b) => _BookingRow(booking: b, timeFmt: timeFmt)),
+                    ...bookings.map((b) => _BookingRow(
+                          booking: b,
+                          timeFmt: timeFmt,
+                          venueId: managed.venueId,
+                        )),
                 ],
               );
             },
@@ -249,11 +255,14 @@ class _StatCard extends StatelessWidget {
 class _BookingRow extends StatelessWidget {
   final BookingModel booking;
   final DateFormat timeFmt;
+  final String venueId;
 
-  const _BookingRow({required this.booking, required this.timeFmt});
+  const _BookingRow({required this.booking, required this.timeFmt, required this.venueId});
 
   @override
   Widget build(BuildContext context) {
+    final adminService = context.read<AdminService>();
+
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
@@ -261,34 +270,57 @@ class _BookingRow extends StatelessWidget {
         color: AppColors.card,
         borderRadius: BorderRadius.circular(10),
       ),
-      child: Row(
-        children: [
-          Container(
-            width: 4,
-            height: 40,
-            decoration: BoxDecoration(
-              color: AppColors.primary,
-              borderRadius: BorderRadius.circular(2),
-            ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(10),
+          onTap: () => context.push('/admin/user/${booking.userId}?venueId=$venueId'),
+          child: FutureBuilder<UserModel?>(
+            future: adminService.getUserProfile(booking.userId),
+            builder: (context, snap) {
+              final user = snap.data;
+              final displayName = user?.displayName.isNotEmpty == true ? user!.displayName : booking.userId;
+
+              return Row(
+                children: [
+                  Container(
+                    width: 4,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(booking.courtName, style: Theme.of(context).textTheme.titleMedium),
+                        Text(
+                          'Booked by $displayName',
+                          style: Theme.of(context).textTheme.bodySmall,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          '${timeFmt.format(booking.startTime)} – ${timeFmt.format(booking.endTime)}',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    'EGP ${booking.totalPrice.toInt()}',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(color: AppColors.success),
+                  ),
+                  const SizedBox(width: 6),
+                  const Icon(Icons.person_outline_rounded, size: 16, color: AppColors.textSecondary),
+                ],
+              );
+            },
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(booking.courtName, style: Theme.of(context).textTheme.titleMedium),
-                Text(
-                  '${timeFmt.format(booking.startTime)} – ${timeFmt.format(booking.endTime)}',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
-            ),
-          ),
-          Text(
-            'EGP ${booking.totalPrice.toInt()}',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(color: AppColors.success),
-          ),
-        ],
+        ),
       ),
     );
   }

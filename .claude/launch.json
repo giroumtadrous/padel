@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "rhet-presentation",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["--yes", "serve", "C:\\Users\\LENOVO\\Downloads\\RHET-Presentation", "-l", "5544"],
+      "port": 5544
+    }
+  ]
+}

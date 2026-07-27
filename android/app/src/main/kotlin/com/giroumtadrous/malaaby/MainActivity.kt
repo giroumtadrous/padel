@@ -1,0 +1,5 @@
+package com.giroumtadrous.malaaby
+
+import io.flutter.embedding.android.FlutterActivity
+
+class MainActivity : FlutterActivity()

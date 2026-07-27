@@ -279,10 +279,10 @@ class BookingService {
     final finalPrice =
         applyLoyaltyDiscount ? rawTotal * (1 - AppConstants.loyaltyDiscountPercent) : rawTotal;
     final durationMinutes = slots.fold(0, (sum, s) => sum + s.durationMinutes);
-    // Deposit is a flat per-hour booking fee, independent of the court's
-    // price — the full court price is paid separately, in cash, at the venue.
-    final depositAmount = AppConstants.depositPerHour * (durationMinutes / 60.0);
-    final cashDueAmount = finalPrice;
+    final halfPrice = finalPrice / 2.0;
+    final hourlyDeposit = AppConstants.depositPerHour * (durationMinutes / 60.0);
+    final depositAmount = halfPrice + hourlyDeposit;
+    final cashDueAmount = finalPrice - halfPrice;
 
     final booking = BookingModel(
       id: bookingId,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:padel/core/constants/app_colors.dart';
 import 'package:padel/core/widgets/app_error_view.dart';
 import 'package:padel/core/widgets/app_loading.dart';
@@ -115,17 +116,56 @@ class _VenueDetailScreenState extends State<VenueDetailScreen> {
                           ),
                         ),
                         const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            const Icon(Icons.location_on_outlined,
-                                size: 13, color: AppColors.textSecondary),
-                            const SizedBox(width: 3),
-                            Text(
-                              '${venue.address}, ${venue.city}',
-                              style: const TextStyle(
-                                  fontSize: 12, color: AppColors.textSecondary),
+                        InkWell(
+                          onTap: () async {
+                            final query = '${venue.address}, ${venue.city}';
+                            final googleMapsUrl = Uri.parse(
+                                'https://www.google.com/maps/search/?api=1&query=${venue.latitude},${venue.longitude}');
+                            final fallbackUrl = Uri.parse(
+                                'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(query)}');
+
+                            try {
+                              if (venue.latitude != 0.0 && venue.longitude != 0.0) {
+                                if (await canLaunchUrl(googleMapsUrl)) {
+                                  await launchUrl(googleMapsUrl,
+                                      mode: LaunchMode.externalApplication);
+                                } else {
+                                  await launchUrl(fallbackUrl,
+                                      mode: LaunchMode.externalApplication);
+                                }
+                              } else {
+                                if (await canLaunchUrl(fallbackUrl)) {
+                                  await launchUrl(fallbackUrl,
+                                      mode: LaunchMode.externalApplication);
+                                }
+                              }
+                            } catch (_) {
+                              if (await canLaunchUrl(fallbackUrl)) {
+                                await launchUrl(fallbackUrl);
+                              }
+                            }
+                          },
+                          borderRadius: BorderRadius.circular(4),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.location_on_outlined,
+                                    size: 13, color: AppColors.secondary),
+                                const SizedBox(width: 3),
+                                Expanded(
+                                  child: Text(
+                                    '${venue.address}, ${venue.city}',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: AppColors.secondary,
+                                      decoration: TextDecoration.underline,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
+                          ),
                         ),
                       ],
                     ),
@@ -371,8 +411,6 @@ class _VenueDetailScreenState extends State<VenueDetailScreen> {
       );
     }
 
-    // All courts share the venue's opening/closing hours, so any non-empty
-    // court's slot times represent the full set of rows.
     final times = _slotsByCourt.values
         .expand((slots) => slots.map((s) => s.startTime))
         .toSet()
@@ -409,33 +447,54 @@ class _VenueDetailScreenState extends State<VenueDetailScreen> {
                 style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
               ),
             )
+          else if (courts.length == 1)
+            // Single court: wide centered 2-column grid
+            GridView.builder(
+              physics: const NeverScrollableScrollPhysics(),
+              shrinkWrap: true,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                mainAxisSpacing: 8,
+                crossAxisSpacing: 8,
+                childAspectRatio: 3.2,
+              ),
+              itemCount: times.length,
+              itemBuilder: (_, i) => _buildGridCell(courts.first, times[i]),
+            )
           else
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Table(
-                defaultColumnWidth: const FixedColumnWidth(116),
-                children: [
-                  TableRow(
-                    children: courts
-                        .map((court) => Center(
-                              child: Text(
-                                court.name,
-                                textAlign: TextAlign.center,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.textPrimary,
-                                ),
-                              ),
-                            ))
-                        .toList(),
+            Center(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Table(
+                  defaultColumnWidth: FixedColumnWidth(
+                    courts.length == 2 ? 180 : 140,
                   ),
-                  ...times.map((time) => TableRow(
-                        children: courts.map((court) => _buildGridCell(court, time)).toList(),
-                      )),
-                ],
+                  children: [
+                    TableRow(
+                      children: courts
+                          .map((court) => Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.only(bottom: 8),
+                                  child: Text(
+                                    court.name,
+                                    textAlign: TextAlign.center,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.textPrimary,
+                                    ),
+                                  ),
+                                ),
+                              ))
+                          .toList(),
+                    ),
+                    ...times.map((time) => TableRow(
+                          children: courts.map((court) => _buildGridCell(court, time)).toList(),
+                        )),
+                  ],
+                ),
               ),
             ),
         ],
@@ -482,24 +541,26 @@ class _VenueDetailScreenState extends State<VenueDetailScreen> {
       child: GestureDetector(
         onTap: isUnavailable ? null : () => _toggleSlot(court, slot!),
         child: Container(
-          height: 54,
-          padding: const EdgeInsets.symmetric(horizontal: 10),
+          constraints: const BoxConstraints(minHeight: 48),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
             color: bgColor,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
               color: isSelected ? AppColors.primary : AppColors.divider,
+              width: isSelected ? 1.5 : 1.0,
             ),
           ),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
                 _timeFmt.format(slot.startTime),
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: textColor),
               ),
+              const SizedBox(width: 8),
               Text(
-                slot.price.toInt().toString(),
+                'EGP ${slot.price.toInt()}',
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w500,

@@ -20,7 +20,9 @@
       "Bash(flutter analyze *)",
       "Bash(grep -A2 '\"bloc\"' pubspec.lock)",
       "Bash(grep -A2 'name: bloc' pubspec.lock)",
-      "Bash(grep -B3 'name: bloc$' pubspec.lock)"
+      "Bash(grep -B3 'name: bloc$' pubspec.lock)",
+      "Bash(ls -la \"/c/Users/LENOVO/Downloads/\" | grep -i present)",
+      "Bash(mkdir -p \"/c/Users/LENOVO/Downloads/RHET-Presentation\" && ls \"/c/Users/LENOVO/Downloads/RHET-Presentation\")"
     ]
   }
 }

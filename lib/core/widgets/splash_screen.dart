@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:padel/core/constants/app_colors.dart';
+import 'package:padel/core/constants/app_constants.dart';
 
 class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key});
@@ -13,17 +14,24 @@ class SplashScreen extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 88,
-              height: 88,
+              width: 124,
+              height: 124,
               decoration: BoxDecoration(
-                color: AppColors.primary,
+                color: Colors.transparent,
                 borderRadius: BorderRadius.circular(22),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
               ),
-              child: const Icon(Icons.sports_tennis_rounded, color: Colors.black, size: 48),
+              child: Padding(
+                padding: const EdgeInsets.all(10),
+                child: Image.asset(
+                  'assets/Gemini_Generated_Image_u2ftxqu2ftxqu2ft.png',
+                  fit: BoxFit.contain,
+                ),
+              ),
             ),
             const SizedBox(height: 24),
             const Text(
-              'PadelPro',
+              AppConstants.appName,
               style: TextStyle(
                 color: AppColors.textOnDark,
                 fontSize: 28,

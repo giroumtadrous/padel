@@ -104,6 +104,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         email: event.email,
         password: event.password,
         displayName: event.displayName,
+        skillLevel: event.skillLevel,
+        preferredSide: event.preferredSide,
       );
       emit(AuthAuthenticated(user));
     } catch (e) {
@@ -134,6 +136,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         displayName: event.displayName,
         preferredSide: event.preferredSide,
         phone: event.phone,
+        skillLevel: event.skillLevel,
       );
       emit(AuthAuthenticated(updated));
     } catch (e) {

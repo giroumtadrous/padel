@@ -9,7 +9,7 @@
       "client_info": {
         "mobilesdk_app_id": "1:297754277020:android:624150418badf93d8b2959",
         "android_client_info": {
-          "package_name": "com.example.padel"
+            "package_name": "com.giroumtadrous.malaaby"
         }
       },
       "oauth_client": [
@@ -17,7 +17,7 @@
           "client_id": "297754277020-m6gc23e6a6a11jvmcess5ndtt8q342ur.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
-            "package_name": "com.example.padel",
+              "package_name": "com.giroumtadrous.malaaby",
             "certificate_hash": "c9bf488c911d0c9218828e13529e67485350c424"
           }
         },

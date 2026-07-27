@@ -2,7 +2,7 @@ name: padel
 description: "Padel Court Booking App — real-time booking, matchmaking, and admin management."
 publish_to: 'none'
 
-version: 1.0.0+1
+version: 1.0.0+2
 
 environment:
   sdk: ^3.10.3
@@ -68,5 +68,6 @@ flutter:
   uses-material-design: true
 
   assets:
+    - assets/
     - assets/images/
     - assets/icons/

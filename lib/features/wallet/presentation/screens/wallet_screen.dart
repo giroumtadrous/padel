@@ -8,7 +8,7 @@ import 'package:padel/core/widgets/app_button.dart';
 import 'package:padel/core/widgets/app_loading.dart';
 import 'package:padel/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:padel/features/auth/presentation/bloc/auth_state.dart';
-import 'package:padel/features/wallet/presentation/screens/topup_card_screen.dart';
+import 'package:padel/features/wallet/presentation/screens/topup_manual_screen.dart';
 
 class WalletScreen extends StatefulWidget {
   const WalletScreen({super.key});
@@ -20,6 +20,7 @@ class WalletScreen extends StatefulWidget {
 class _WalletScreenState extends State<WalletScreen> {
   final _amountCtrl = TextEditingController();
   final _amountFormKey = GlobalKey<FormState>();
+  String _selectedMethod = AppConstants.paymentVodafone;
 
   @override
   void dispose() {
@@ -136,25 +137,60 @@ class _WalletScreenState extends State<WalletScreen> {
                           },
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Icon(Icons.credit_card_rounded, size: 18, color: AppColors.textSecondary),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Visa / Mastercard only',
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                        ],
+                      const SizedBox(height: 20),
+                      const Text(
+                        'Select Payment Method',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 10),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: AppColors.card,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppColors.divider),
+                        ),
+                        child: Column(
+                          children: [
+                            _TopUpMethodOption(
+                              icon: Icons.phone_android_rounded,
+                              label: 'Vodafone Cash',
+                              isSelected: _selectedMethod == AppConstants.paymentVodafone,
+                              onTap: () => setState(() => _selectedMethod = AppConstants.paymentVodafone),
+                            ),
+                            _TopUpMethodOption(
+                              icon: Icons.send_rounded,
+                              label: 'InstaPay',
+                              isSelected: _selectedMethod == AppConstants.paymentInstaPay,
+                              onTap: () => setState(() => _selectedMethod = AppConstants.paymentInstaPay),
+                            ),
+                            _TopUpMethodOption(
+                              icon: Icons.credit_card_rounded,
+                              label: 'Card (Visa / MC)',
+                              isSelected: _selectedMethod == AppConstants.paymentCard,
+                              disabled: true,
+                              suffix: const Text('Coming soon', style: TextStyle(color: AppColors.textHint, fontSize: 11)),
+                              onTap: () => setState(() => _selectedMethod = AppConstants.paymentCard),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
                       AppButton(
                         label: 'Continue',
                         onPressed: () {
                           if (!_amountFormKey.currentState!.validate()) return;
                           final amount = double.parse(_amountCtrl.text);
+                          if (_selectedMethod == AppConstants.paymentCard) return;
+
                           Navigator.of(context).push(MaterialPageRoute(
-                            builder: (_) => TopUpCardScreen(amount: amount),
+                            builder: (_) => TopUpManualScreen(
+                              amount: amount,
+                              paymentMethod: _selectedMethod,
+                            ),
                           ));
                         },
                       ),
@@ -200,6 +236,65 @@ class _TransactionPlaceholder extends StatelessWidget {
             textAlign: TextAlign.center,
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _TopUpMethodOption extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool isSelected;
+  final bool disabled;
+  final Widget? suffix;
+  final VoidCallback? onTap;
+
+  const _TopUpMethodOption({
+    required this.icon,
+    required this.label,
+    required this.isSelected,
+    this.disabled = false,
+    this.suffix,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: disabled ? null : onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(
+          children: [
+            Icon(icon,
+                size: 18,
+                color: disabled
+                    ? AppColors.textHint
+                    : isSelected
+                        ? AppColors.primary
+                        : AppColors.textSecondary),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: disabled ? AppColors.textHint : AppColors.textPrimary,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                ),
+              ),
+            ),
+            ?suffix,
+            if (!disabled)
+              Icon(
+                isSelected
+                    ? Icons.radio_button_checked_rounded
+                    : Icons.radio_button_unchecked_rounded,
+                color: isSelected ? AppColors.primary : AppColors.textHint,
+                size: 18,
+              ),
+          ],
+        ),
       ),
     );
   }

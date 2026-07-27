@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:padel/core/router/app_router.dart';
+import 'package:padel/core/constants/app_constants.dart';
 import 'package:padel/core/services/notification_service.dart';
 import 'package:padel/core/services/notifications_repository.dart';
 import 'package:padel/core/theme/app_theme.dart';
@@ -134,7 +135,7 @@ class _AppViewState extends State<_AppView> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
-      title: 'PadelPro',
+      title: AppConstants.appName,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       routerConfig: _router,

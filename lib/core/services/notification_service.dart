@@ -1,3 +1,4 @@
+import 'package:padel/core/constants/app_constants.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -51,7 +52,7 @@ class NotificationService {
       final notification = message.notification;
       if (notification != null) {
         _showLocalNotification(
-          title: notification.title ?? 'PadelPro',
+          title: notification.title ?? AppConstants.appName,
           body: notification.body ?? '',
         );
       }

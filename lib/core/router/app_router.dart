@@ -10,9 +10,12 @@ import 'package:padel/features/admin/presentation/screens/user_profile_view_scre
 import 'package:padel/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:padel/features/auth/presentation/bloc/auth_state.dart';
 import 'package:padel/features/auth/presentation/screens/login_screen.dart';
+import 'package:padel/features/auth/presentation/screens/help_support_screen.dart';
 import 'package:padel/features/auth/presentation/screens/profile_screen.dart';
 import 'package:padel/features/auth/presentation/screens/register_screen.dart';
+import 'package:padel/features/auth/presentation/screens/about_malaaby_screen.dart';
 import 'package:padel/features/auth/presentation/screens/verify_phone_screen.dart';
+import 'package:padel/features/auth/presentation/screens/complete_profile_screen.dart';
 import 'package:padel/features/booking/data/models/booking_model.dart';
 import 'package:padel/features/booking/presentation/screens/booking_confirm_screen.dart';
 import 'package:padel/features/booking/presentation/screens/card_payment_screen.dart';
@@ -61,13 +64,13 @@ class AppRouter {
         if (loc == '/splash') return isAuthenticated ? homeRoute : '/login';
 
         if (authState is AuthAuthenticated) {
-          // Phone verification is suggested for every provider (email/Google/
-          // Apple accounts all lack a phone number by default), but optional —
-          // skipping it is remembered permanently on the user's profile.
-          if (!authState.user.phoneVerified &&
-              !authState.user.phoneVerificationSkipped &&
-              loc != '/verify-phone') {
-            return '/verify-phone';
+          final isProfileIncomplete = authState.user.preferredSide.isEmpty || authState.user.skillLevel == 0.0;
+          if (isProfileIncomplete) {
+            return loc == '/complete-profile' ? null : '/complete-profile';
+          }
+
+          if (loc == '/complete-profile') {
+            return homeRoute;
           }
 
           if (loc.startsWith('/admin') && !authState.user.hasAdminAccess) return '/venues';
@@ -99,6 +102,10 @@ class AppRouter {
         GoRoute(
           path: '/verify-phone',
           builder: (_, __) => const VerifyPhoneScreen(),
+        ),
+        GoRoute(
+          path: '/complete-profile',
+          builder: (_, __) => const CompleteProfileScreen(),
         ),
         GoRoute(
           path: '/booking/confirm',
@@ -143,6 +150,14 @@ class AppRouter {
         GoRoute(
           path: '/wallet',
           builder: (_, __) => const WalletScreen(),
+        ),
+        GoRoute(
+          path: '/help-support',
+          builder: (_, __) => const HelpSupportScreen(),
+        ),
+        GoRoute(
+          path: '/about',
+          builder: (_, __) => const AboutMalaabyScreen(),
         ),
         StatefulShellRoute.indexedStack(
           builder: (_, __, shell) => MainShell(navigationShell: shell),

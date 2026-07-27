@@ -92,6 +92,8 @@ class AuthService {
     required String email,
     required String password,
     required String displayName,
+    required double skillLevel,
+    required String preferredSide,
   }) async {
     final credential = await _auth.createUserWithEmailAndPassword(
       email: email,
@@ -103,6 +105,8 @@ class AuthService {
       uid: credential.user!.uid,
       email: email,
       displayName: displayName,
+      skillLevel: skillLevel,
+      preferredSide: preferredSide,
       createdAt: DateTime.now(),
     );
 
@@ -173,6 +177,8 @@ class AuthService {
         email: userCredential.user!.email ?? appleCredential.email ?? '',
         displayName: displayName.isNotEmpty ? displayName : 'Player',
         photoUrl: userCredential.user!.photoURL,
+        preferredSide: '',
+        skillLevel: 0.0,
         createdAt: DateTime.now(),
       );
       await _db.collection(AppConstants.usersCollection).doc(uid).set(user.toJson());
@@ -249,6 +255,8 @@ class AuthService {
         email: userCredential.user!.email ?? '',
         displayName: userCredential.user!.displayName ?? '',
         photoUrl: userCredential.user!.photoURL,
+        preferredSide: '',
+        skillLevel: 0.0,
         createdAt: DateTime.now(),
       );
       await _db.collection(AppConstants.usersCollection).doc(uid).set(user.toJson());
@@ -275,12 +283,14 @@ class AuthService {
     String? photoUrl,
     String? preferredSide,
     String? phone,
+    double? skillLevel,
   }) async {
     final updates = <String, dynamic>{};
     if (displayName != null) updates['displayName'] = displayName;
     if (photoUrl != null) updates['photoUrl'] = photoUrl;
     if (preferredSide != null) updates['preferredSide'] = preferredSide;
     if (phone != null) updates['phone'] = phone;
+    if (skillLevel != null) updates['skillLevel'] = skillLevel;
 
     await _db.collection(AppConstants.usersCollection).doc(uid).update(updates);
 

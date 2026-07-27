@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:padel/core/constants/app_colors.dart';
 import 'package:padel/features/admin/presentation/bloc/admin_bloc.dart';
@@ -233,16 +234,35 @@ class _CourtsHoursGridState extends State<CourtsHoursGrid> {
         );
         break;
       case SlotStatus.booked:
-        for (final booking in widget.todaysBookings) {
-          if (booking.id == slot.bookingId) {
-            widget.onUserTap(booking.userId);
-            break;
-          }
+        final booking = _resolveBookingForSlot(court.id, slot);
+        if (booking == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Booked slot details are not available yet.')),
+          );
+          return;
         }
+        context.push('/admin/user/${booking.userId}?venueId=${widget.venueId}');
         break;
       case SlotStatus.held:
         break;
     }
+  }
+
+  BookingModel? _resolveBookingForSlot(String courtId, TimeSlotModel slot) {
+    final dateStr = DateFormat('yyyy-MM-dd').format(widget.date);
+    for (final booking in widget.todaysBookings) {
+      final matchesBookingId = slot.bookingId != null && booking.id == slot.bookingId;
+      final matchesSlotId = booking.slotIds.contains(slot.id);
+      final matchesCourtAndTime = booking.courtId == courtId &&
+          booking.date == dateStr &&
+          !slot.startTime.isBefore(booking.startTime) &&
+          slot.startTime.isBefore(booking.endTime);
+
+      if (matchesBookingId || matchesSlotId || matchesCourtAndTime) {
+        return booking;
+      }
+    }
+    return null;
   }
 
   void _confirm({

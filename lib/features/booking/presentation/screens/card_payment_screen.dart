@@ -226,7 +226,7 @@ class _CardPaymentScreenState extends State<CardPaymentScreen> {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         const Text(
-          'PADEL PRO',
+          'MALAABY',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 14, letterSpacing: 1),
         ),
         Text(

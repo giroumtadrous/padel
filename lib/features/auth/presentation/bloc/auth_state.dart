@@ -20,11 +20,18 @@ class AuthAuthenticated extends AuthState {
   const AuthAuthenticated(this.user);
   @override
   // Bloc no-ops an emit() whose state is == the current one (and never even
-  // updates its stored state), so phoneVerified/phoneVerificationSkipped must
-  // be part of equality — otherwise re-emitting the same uid after phone
-  // verification (or skipping it) would be silently dropped and the router's
-  // redirect gate would never clear.
-  List<Object?> get props => [user.uid, user.phoneVerified, user.phoneVerificationSkipped];
+  // updates its stored state), so auth-relevant profile fields must be part
+  // of equality — otherwise completing the profile or verifying/skipping
+  // phone would be silently dropped and the router's redirect gate would
+  // never re-evaluate.
+  List<Object?> get props => [
+        user.uid,
+        user.preferredSide,
+        user.skillLevel,
+        user.phoneVerified,
+        user.phoneVerificationSkipped,
+        user.hasAdminAccess,
+      ];
 }
 
 class AuthUnauthenticated extends AuthState {

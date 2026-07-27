@@ -13,6 +13,7 @@ import 'package:padel/features/admin/presentation/screens/court_admin_dashboard_
 import 'package:padel/features/admin/presentation/screens/courts_hours_grid.dart';
 import 'package:padel/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:padel/features/auth/presentation/bloc/auth_state.dart';
+import 'package:padel/features/auth/data/models/user_model.dart';
 import 'package:padel/features/booking/data/models/booking_model.dart';
 import 'package:padel/features/venues/data/models/venue_model.dart';
 
@@ -419,6 +420,8 @@ class _AdminBookingRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final adminService = context.read<AdminService>();
+
     return Material(
       color: AppColors.card,
       borderRadius: BorderRadius.circular(10),
@@ -428,36 +431,49 @@ class _AdminBookingRow extends StatelessWidget {
         child: Container(
           margin: const EdgeInsets.only(bottom: 8),
           padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              Container(
-                width: 4,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: AppColors.primary,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(booking.courtName, style: Theme.of(context).textTheme.titleMedium),
-                    Text(
-                      '${timeFmt.format(booking.startTime)} – ${timeFmt.format(booking.endTime)}',
-                      style: Theme.of(context).textTheme.bodySmall,
+          child: FutureBuilder<UserModel?>(
+            future: adminService.getUserProfile(booking.userId),
+            builder: (context, snap) {
+              final user = snap.data;
+              final displayName = user?.displayName.isNotEmpty == true ? user!.displayName : booking.userId;
+              return Row(
+                children: [
+                  Container(
+                    width: 4,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.circular(2),
                     ),
-                  ],
-                ),
-              ),
-              Text(
-                'EGP ${booking.totalPrice.toInt()}',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(color: AppColors.success),
-              ),
-              const SizedBox(width: 4),
-              const Icon(Icons.person_outline_rounded, size: 16, color: AppColors.textSecondary),
-            ],
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(booking.courtName, style: Theme.of(context).textTheme.titleMedium),
+                        Text(
+                          'Booked by $displayName',
+                          style: Theme.of(context).textTheme.bodySmall,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          '${timeFmt.format(booking.startTime)} – ${timeFmt.format(booking.endTime)}',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    'EGP ${booking.totalPrice.toInt()}',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(color: AppColors.success),
+                  ),
+                  const SizedBox(width: 4),
+                  const Icon(Icons.person_outline_rounded, size: 16, color: AppColors.textSecondary),
+                ],
+              );
+            },
           ),
         ),
       ),

@@ -27,12 +27,15 @@ service cloud.firestore {
       allow read:   if request.auth != null;
       allow create: if isOwner(userId);
       // skillLevel can only change via an admin-approved skill request
-      // (SkillRequestService.approveRequest) — the owner can update every
-      // other profile field (including pendingSkillLevel, walletBalance,
-      // etc.) directly.
+      // (SkillRequestService.approveRequest) after onboarding. During the
+      // initial complete-profile flow we allow the owner to set their first
+      // non-zero skill level when the existing stored value is still 0.0.
       allow update: if isAdmin() ||
                        (isOwner(userId) &&
-                        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['skillLevel']));
+                        (
+                          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['skillLevel']) ||
+                          resource.data.skillLevel == 0.0
+                        ));
       allow delete: if false;
     }
 
