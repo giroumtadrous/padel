@@ -62,6 +62,58 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     _load();
   }
 
+  Future<void> _editVenueMapLink(VenueModel venue) async {
+    final controller = TextEditingController(text: venue.googleMapsUrl ?? '');
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Edit Map Link'),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.url,
+          decoration: const InputDecoration(
+            labelText: 'Google Maps URL',
+            hintText: 'https://www.google.com/maps/...',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+
+    if (saved != true) {
+      controller.dispose();
+      return;
+    }
+
+    try {
+      await context.read<AdminService>().updateVenueGoogleMapsUrl(
+            venueId: venue.id,
+            googleMapsUrl: controller.text,
+          );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Venue map link updated')),
+      );
+      _load();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString()), backgroundColor: AppColors.error),
+      );
+    } finally {
+      controller.dispose();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = context.watch<AuthBloc>().state;
@@ -113,6 +165,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               onMarketTap: () => context.go('/admin/market'),
               onSkillRequestsTap: () => context.go('/admin/skill-requests'),
               onReviewsTap: () => context.go('/admin/reviews?venueId=${state.venue.id}'),
+              onMapLinkTap: () => _editVenueMapLink(state.venue),
               onUserTap: (userId) => context.push('/admin/user/$userId?venueId=${state.venue.id}'),
             );
           }
@@ -163,6 +216,7 @@ class _DashboardContent extends StatelessWidget {
   final VoidCallback onMarketTap;
   final VoidCallback onSkillRequestsTap;
   final VoidCallback onReviewsTap;
+  final VoidCallback onMapLinkTap;
   final ValueChanged<String> onUserTap;
 
   static final _dateFmt = DateFormat('EEE, MMM d');
@@ -180,6 +234,7 @@ class _DashboardContent extends StatelessWidget {
     required this.onMarketTap,
     required this.onSkillRequestsTap,
     required this.onReviewsTap,
+    required this.onMapLinkTap,
     required this.onUserTap,
   });
 
@@ -343,6 +398,12 @@ class _DashboardContent extends StatelessWidget {
               ),
             ),
           ],
+        ),
+        const SizedBox(height: 12),
+        _ActionCard(
+          icon: Icons.map_outlined,
+          label: 'Edit Map Link',
+          onTap: onMapLinkTap,
         ),
       ],
     );

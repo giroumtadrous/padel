@@ -18,6 +18,12 @@ class AppConstants {
   static const String tournamentsCollection = 'tournaments';
   static const String marketItemsCollection = 'market_items';
   static const String skillRequestsCollection = 'skill_requests';
+  static const String notificationsCollection = 'notifications';
+
+  // Used to detach business records from a deleted account while preserving
+  // venue/admin history where needed.
+  static const String deletedAccountUserId = 'deleted-account';
+  static const String deletedAccountDisplayName = 'Deleted account';
 
   static const String rolePlayer = 'player';
   static const String roleAdmin = 'admin';

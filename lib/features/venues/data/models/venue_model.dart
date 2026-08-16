@@ -34,6 +34,7 @@ class VenueModel {
   final String description;
   final String address;
   final String city;
+  final String? googleMapsUrl;
   final double latitude;
   final double longitude;
   final List<String> imageUrls;
@@ -52,6 +53,7 @@ class VenueModel {
     required this.description,
     required this.address,
     required this.city,
+    this.googleMapsUrl,
     this.latitude = 0.0,
     this.longitude = 0.0,
     this.imageUrls = const [],
@@ -71,6 +73,7 @@ class VenueModel {
         description: json['description'] as String? ?? '',
         address: json['address'] as String? ?? '',
         city: json['city'] as String? ?? '',
+        googleMapsUrl: json['googleMapsUrl'] as String?,
         latitude: (json['latitude'] as num?)?.toDouble() ?? 0.0,
         longitude: (json['longitude'] as num?)?.toDouble() ?? 0.0,
         imageUrls: List<String>.from(json['imageUrls'] as List? ?? []),
@@ -92,6 +95,7 @@ class VenueModel {
         'description': description,
         'address': address,
         'city': city,
+        'googleMapsUrl': googleMapsUrl,
         'latitude': latitude,
         'longitude': longitude,
         'imageUrls': imageUrls,

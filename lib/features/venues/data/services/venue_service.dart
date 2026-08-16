@@ -72,6 +72,7 @@ class VenueService {
       description: venue.description,
       address: venue.address,
       city: venue.city,
+      googleMapsUrl: venue.googleMapsUrl,
       latitude: venue.latitude,
       longitude: venue.longitude,
       imageUrls: venue.imageUrls,

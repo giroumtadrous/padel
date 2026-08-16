@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart' show TargetPlatform, defaultTargetPlatf
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:padel/core/constants/app_constants.dart';
+import 'package:padel/features/booking/data/models/booking_model.dart';
 import 'package:padel/features/auth/data/models/user_model.dart';
 
 class AuthService {
@@ -277,6 +278,101 @@ class AuthService {
     }
   }
 
+  /// Re-authenticates the current user before a sensitive operation such as
+  /// deleting the account. Firebase blocks `user.delete()` when the login is
+  /// stale, so this refreshes the session first.
+  Future<void> reauthenticateForDeletion({String? password}) async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('Not signed in');
+
+    final providerIds = user.providerData.map((provider) => provider.providerId).toSet();
+
+    if (providerIds.contains('password')) {
+      final email = user.email;
+      if (email == null || email.isEmpty) {
+        throw Exception('This account does not have an email address for re-authentication.');
+      }
+      if (password == null || password.isEmpty) {
+        throw Exception('Password is required to delete this account.');
+      }
+      await user.reauthenticateWithCredential(
+        EmailAuthProvider.credential(email: email, password: password),
+      );
+      return;
+    }
+
+    if (providerIds.contains('google.com')) {
+      if (kIsWeb) {
+        await _auth.signInWithPopup(GoogleAuthProvider());
+        return;
+      }
+
+      try {
+        await _googleSignIn.disconnect();
+      } catch (_) {
+        try {
+          await _googleSignIn.signOut();
+        } catch (_) {}
+      }
+
+      final googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) throw Exception('Google sign-in cancelled');
+      final googleAuth = await googleUser.authentication;
+      await user.reauthenticateWithCredential(
+        GoogleAuthProvider.credential(
+          accessToken: googleAuth.accessToken,
+          idToken: googleAuth.idToken,
+        ),
+      );
+      return;
+    }
+
+    if (providerIds.contains('apple.com')) {
+      if (kIsWeb || defaultTargetPlatform != TargetPlatform.iOS) {
+        throw Exception('Apple re-authentication is only available on iOS.');
+      }
+
+      final rawNonce = _generateNonce();
+      final hashedNonce = _sha256OfString(rawNonce);
+      final appleCredential = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+        nonce: hashedNonce,
+      );
+
+      final identityToken = appleCredential.identityToken;
+      if (identityToken == null || identityToken.trim().isEmpty) {
+        throw Exception('Apple sign-in did not return an identity token. Please try again.');
+      }
+
+      await user.reauthenticateWithCredential(
+        OAuthProvider('apple.com').credential(
+          idToken: identityToken,
+          rawNonce: rawNonce,
+        ),
+      );
+      return;
+    }
+
+    throw Exception('Please sign in again before deleting this account.');
+  }
+
+  /// Deletes the current Firebase Auth account and removes or anonymizes the
+  /// associated Firestore records.
+  Future<void> deleteCurrentAccount({String? password}) async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('Not signed in');
+
+    await reauthenticateForDeletion(password: password);
+    final uid = user.uid;
+
+    await _deleteAssociatedUserData(uid);
+    await user.delete();
+    await signOut();
+  }
+
   Future<UserModel> updateProfile({
     required String uid,
     String? displayName,
@@ -477,6 +573,147 @@ class AuthService {
   Future<void> saveFcmToken(String uid, String token) async {
     await _db.collection(AppConstants.usersCollection).doc(uid).update({
       'fcmToken': token,
+    });
+  }
+
+  Future<void> _deleteAssociatedUserData(String uid) async {
+    await Future.wait([
+      _deleteDocumentsWhereFieldEquals(
+        collectionPath: AppConstants.notificationsCollection,
+        field: 'userId',
+        value: uid,
+      ),
+      _deleteDocumentsWhereFieldEquals(
+        collectionPath: AppConstants.skillRequestsCollection,
+        field: 'userId',
+        value: uid,
+      ),
+      _deleteDocumentsWhereFieldEquals(
+        collectionPath: AppConstants.reviewsCollection,
+        field: 'userId',
+        value: uid,
+      ),
+      _anonymizeBookings(uid),
+      _cleanupOpenMatches(uid),
+      _cleanupMarketItems(uid),
+      _db.collection(AppConstants.usersCollection).doc(uid).delete(),
+    ]);
+  }
+
+  Future<void> _deleteDocumentsWhereFieldEquals({
+    required String collectionPath,
+    required String field,
+    required String value,
+  }) async {
+    while (true) {
+      final snap = await _db
+          .collection(collectionPath)
+          .where(field, isEqualTo: value)
+          .limit(250)
+          .get();
+
+      if (snap.docs.isEmpty) return;
+
+      final batch = _db.batch();
+      for (final doc in snap.docs) {
+        batch.delete(doc.reference);
+      }
+      await batch.commit();
+    }
+  }
+
+  Future<void> _anonymizeBookings(String uid) async {
+    final snap = await _db
+        .collection(AppConstants.bookingsCollection)
+        .where('userId', isEqualTo: uid)
+        .get();
+
+    for (final doc in snap.docs) {
+      final booking = BookingModel.fromJson({...doc.data(), 'id': doc.id});
+      if (booking.status == BookingStatus.upcoming && booking.startTime.isAfter(DateTime.now())) {
+        await _cancelBookingAndReleaseSlots(booking);
+      }
+
+      await doc.reference.update({
+        'userId': AppConstants.deletedAccountUserId,
+      });
+    }
+  }
+
+  Future<void> _cleanupOpenMatches(String uid) async {
+    final organizerSnap = await _db
+        .collection(AppConstants.openMatchesCollection)
+        .where('organizerId', isEqualTo: uid)
+        .get();
+
+    for (final doc in organizerSnap.docs) {
+      await doc.reference.delete();
+    }
+
+    final participantSnap = await _db
+        .collection(AppConstants.openMatchesCollection)
+        .where('participantIds', arrayContains: uid)
+        .get();
+
+    for (final doc in participantSnap.docs) {
+      final data = doc.data();
+      if ((data['organizerId'] as String? ?? '') == uid) continue;
+
+      final participantIds = List<String>.from(data['participantIds'] as List? ?? []);
+      participantIds.remove(uid);
+      final totalSlots = data['totalSlots'] as int? ?? AppConstants.maxMatchPlayers;
+      final updatedFilledSlots = (data['filledSlots'] as int? ?? 1) - 1;
+
+      await doc.reference.update({
+        'participantIds': participantIds,
+        'filledSlots': updatedFilledSlots < 1 ? 1 : updatedFilledSlots,
+        'status': updatedFilledSlots >= totalSlots ? AppConstants.matchFull : AppConstants.matchOpen,
+      });
+    }
+  }
+
+  Future<void> _cleanupMarketItems(String uid) async {
+    final snap = await _db
+        .collection(AppConstants.marketItemsCollection)
+        .where('sellerId', isEqualTo: uid)
+        .get();
+
+    for (final doc in snap.docs) {
+      await doc.reference.update({
+        'status': AppConstants.marketItemRemoved,
+        'sellerId': AppConstants.deletedAccountUserId,
+        'sellerName': AppConstants.deletedAccountDisplayName,
+      });
+    }
+  }
+
+  Future<void> _cancelBookingAndReleaseSlots(BookingModel booking) async {
+    final bookingRef = _db.collection(AppConstants.bookingsCollection).doc(booking.id);
+    await _db.runTransaction((tx) async {
+      final snap = await tx.get(bookingRef);
+      if (!snap.exists) return;
+
+      tx.update(bookingRef, {
+        'status': AppConstants.bookingCancelled,
+        'cancelledAt': Timestamp.fromDate(DateTime.now()),
+      });
+
+      for (final slotId in booking.slotIds) {
+        final slotRef = _db
+            .collection(AppConstants.venuesCollection)
+            .doc(booking.venueId)
+            .collection(AppConstants.courtsSubcollection)
+            .doc(booking.courtId)
+            .collection(AppConstants.slotsSubcollection)
+            .doc(booking.date)
+            .collection('times')
+            .doc(slotId);
+
+        tx.update(slotRef, {
+          'status': AppConstants.statusAvailable,
+          'bookingId': null,
+        });
+      }
     });
   }
 

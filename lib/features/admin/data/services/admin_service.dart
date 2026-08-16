@@ -128,6 +128,18 @@ class AdminService {
         .update({'isActive': isActive});
   }
 
+  /// Stores the venue's public Google Maps link in Firestore so the
+  /// player-facing venue detail screen can open the canonical location URL
+  /// instead of constructing one in code.
+  Future<void> updateVenueGoogleMapsUrl({
+    required String venueId,
+    required String googleMapsUrl,
+  }) async {
+    await _db.collection(AppConstants.venuesCollection).doc(venueId).update({
+      'googleMapsUrl': googleMapsUrl.trim(),
+    });
+  }
+
   /// Grants [adminEmail]'s account scoped admin access to a single court —
   /// independent of role/managedVenueIds — by recording the composite
   /// "venueId::courtId" ref on their user doc and denormalising the admin's

@@ -119,7 +119,10 @@ class _VenueDetailScreenState extends State<VenueDetailScreen> {
                         InkWell(
                           onTap: () async {
                             final query = '${venue.address}, ${venue.city}';
-                            final googleMapsUrl = Uri.parse(
+                            final storedMapsUrl = venue.googleMapsUrl?.trim();
+                            final googleMapsUrl = storedMapsUrl != null && storedMapsUrl.isNotEmpty
+                              ? Uri.parse(storedMapsUrl)
+                              : Uri.parse(
                                 'https://www.google.com/maps/search/?api=1&query=${venue.latitude},${venue.longitude}');
                             final fallbackUrl = Uri.parse(
                                 'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(query)}');
@@ -631,6 +634,8 @@ class _VenueDetailScreenState extends State<VenueDetailScreen> {
   Widget _buildBookBar(BuildContext context, VenueModel venue) {
     final totalPrice = _selectedSlots.fold(0.0, (sum, s) => sum + s.price);
     final hasSelection = _selectedSlots.isNotEmpty;
+    final authState = context.read<AuthBloc>().state;
+    final isAuthenticated = authState is AuthAuthenticated;
 
     return BlocListener<BookingBloc, BookingState>(
       listener: (context, state) {
@@ -656,8 +661,15 @@ class _VenueDetailScreenState extends State<VenueDetailScreen> {
           child: BlocBuilder<BookingBloc, BookingState>(
             builder: (context, bookingState) {
               final isLoading = bookingState is SlotHolding;
+              final buttonLabel = !isAuthenticated
+                  ? 'Sign in to book'
+                  : hasSelection
+                      ? 'Book for EGP ${totalPrice.toStringAsFixed(0)}'
+                      : 'Select a time slot';
               return ElevatedButton(
-                onPressed: hasSelection && !isLoading ? () => _holdSlot(context) : null,
+                onPressed: hasSelection && !isLoading
+                    ? () => isAuthenticated ? _holdSlot(context) : _promptSignIn(context)
+                    : null,
                 style: ElevatedButton.styleFrom(
                   minimumSize: const Size.fromHeight(50),
                   backgroundColor:
@@ -671,9 +683,7 @@ class _VenueDetailScreenState extends State<VenueDetailScreen> {
                             color: Colors.white, strokeWidth: 2),
                       )
                     : Text(
-                        hasSelection
-                            ? 'Book for EGP ${totalPrice.toStringAsFixed(0)}'
-                            : 'Select a time slot',
+                        buttonLabel,
                         style: const TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
@@ -691,12 +701,40 @@ class _VenueDetailScreenState extends State<VenueDetailScreen> {
   void _holdSlot(BuildContext context) {
     if (_selectedSlots.isEmpty) return;
     final authState = context.read<AuthBloc>().state;
-    if (authState is! AuthAuthenticated) return;
+    if (authState is! AuthAuthenticated) {
+      _promptSignIn(context);
+      return;
+    }
 
     context.read<BookingBloc>().add(HoldSlots(
           slots: List.of(_selectedSlots),
           userId: authState.user.uid,
         ));
+  }
+
+  void _promptSignIn(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Sign in to book'),
+        content: const Text(
+          'Court availability is public, but booking a court requires an account.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Not now'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              context.push('/login');
+            },
+            child: const Text('Go to login'),
+          ),
+        ],
+      ),
+    );
   }
 }
 

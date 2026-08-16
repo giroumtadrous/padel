@@ -51,6 +51,27 @@ class AppRouter {
         final loc = state.matchedLocation;
         final isAuthRoute = loc == '/login' || loc == '/register';
 
+        // Availability browsing is public. Only account-backed paths are
+        // redirected to auth; venue/court discovery should work without an
+        // account so App Review can verify the app's booking inventory.
+        final isPublicBrowsingRoute =
+            loc == '/venues' ||
+            loc.startsWith('/venues/') ||
+            loc == '/matches' ||
+            loc.startsWith('/matches/') ||
+            loc == '/tournaments' ||
+            loc == '/market' ||
+            loc == '/about' ||
+            loc == '/help-support';
+
+        final requiresAuthRoute =
+            loc == '/profile' ||
+            loc == '/wallet' ||
+            loc == '/complete-profile' ||
+            loc == '/verify-phone' ||
+            loc.startsWith('/booking/') ||
+            loc.startsWith('/admin');
+
         // During initial Firebase auth check, hold at /splash
         if (authState is AuthInitial || authState is AuthLoading) {
           return loc == '/splash' ? null : '/splash';
@@ -59,9 +80,15 @@ class AppRouter {
         final isAuthenticated = authState is AuthAuthenticated;
         final homeRoute =
             isAuthenticated && authState.user.hasAdminAccess ? '/admin' : '/venues';
-        if (!isAuthenticated && !isAuthRoute) return '/login';
+        if (!isAuthenticated) {
+          if (loc == '/splash') return '/venues';
+          if (requiresAuthRoute) return '/login';
+          if (isAuthRoute || isPublicBrowsingRoute) return null;
+          return '/venues';
+        }
+
         if (isAuthenticated && isAuthRoute) return homeRoute;
-        if (loc == '/splash') return isAuthenticated ? homeRoute : '/login';
+        if (loc == '/splash') return isAuthenticated ? homeRoute : '/venues';
 
         if (authState is AuthAuthenticated) {
           final isProfileIncomplete = authState.user.preferredSide.isEmpty || authState.user.skillLevel == 0.0;

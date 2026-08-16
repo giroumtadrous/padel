@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:go_router/go_router.dart';
 import 'package:padel/core/constants/app_colors.dart';
 import 'package:padel/core/constants/app_constants.dart';
 import 'package:padel/core/widgets/app_button.dart';
 import 'package:padel/core/widgets/app_loading.dart';
+import 'package:padel/features/auth/data/services/auth_service.dart';
 import 'package:padel/features/auth/data/models/user_model.dart';
 import 'package:padel/features/booking/presentation/screens/booking_history_screen.dart';
 import 'package:padel/features/auth/presentation/bloc/auth_bloc.dart';
@@ -47,6 +49,7 @@ class _ProfileContent extends StatefulWidget {
 class _ProfileContentState extends State<_ProfileContent> {
   late double _skillLevel;
   late String _preferredSide;
+  bool _deletingAccount = false;
 
   @override
   void initState() {
@@ -221,6 +224,13 @@ class _ProfileContentState extends State<_ProfileContent> {
                     isOutlined: true,
                     onPressed: () => context.read<AuthBloc>().add(const AuthLoggedOut()),
                   ),
+                  const SizedBox(height: 12),
+                  AppButton(
+                    label: 'Delete Account',
+                    isOutlined: true,
+                    isLoading: _deletingAccount,
+                    onPressed: _deletingAccount ? null : _deleteAccount,
+                  ),
                   const SizedBox(height: 40),
                 ],
               ),
@@ -229,6 +239,87 @@ class _ProfileContentState extends State<_ProfileContent> {
         ],
       ),
     );
+  }
+
+  Future<void> _deleteAccount() async {
+    final authState = context.read<AuthBloc>().state;
+    if (authState is! AuthAuthenticated) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete Account'),
+        content: const Text(
+          'This permanently deletes your Malaaby account and associated data. This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Continue', style: TextStyle(color: AppColors.error)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    final providerIds = FirebaseAuth.instance.currentUser?.providerData
+            .map((provider) => provider.providerId)
+            .toSet() ??
+        <String>{};
+
+    String? password;
+    if (providerIds.contains('password')) {
+      password = await _promptForPassword();
+      if (password == null || !mounted) return;
+    }
+
+    setState(() => _deletingAccount = true);
+    try {
+      await context.read<AuthService>().deleteCurrentAccount(password: password);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Your account was deleted successfully.')),
+      );
+      context.read<AuthBloc>().add(const AuthLoggedOut());
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      );
+    } finally {
+      if (mounted) setState(() => _deletingAccount = false);
+    }
+  }
+
+  Future<String?> _promptForPassword() async {
+    final passwordController = TextEditingController();
+    final password = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Re-enter Password'),
+        content: TextField(
+          controller: passwordController,
+          obscureText: true,
+          decoration: const InputDecoration(labelText: 'Password'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, passwordController.text),
+            child: const Text('Delete', style: TextStyle(color: AppColors.error)),
+          ),
+        ],
+      ),
+    );
+    passwordController.dispose();
+    return password;
   }
 
   Widget _buildNavyHeader(BuildContext context, UserModel user) {
