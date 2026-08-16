@@ -9,6 +9,7 @@ export PATH="$PATH:$HOME/flutter/bin"
 
 flutter doctor
 flutter pub get
+cat .flutter-plugins-dependencies
 flutter precache --ios
 
 cd ios
