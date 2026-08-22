@@ -334,19 +334,25 @@ class AuthService {
 
       final rawNonce = _generateNonce();
       final hashedNonce = _sha256OfString(rawNonce);
-      final appleCredential = await SignInWithApple.getAppleIDCredential(
-        scopes: [
-          AppleIDAuthorizationScopes.email,
-          AppleIDAuthorizationScopes.fullName,
-        ],
-        nonce: hashedNonce,
-      );
+      final AuthorizationCredentialAppleID appleCredential;
+try {
+  appleCredential = await SignInWithApple.getAppleIDCredential(
+    scopes: [
+      AppleIDAuthorizationScopes.email,
+      AppleIDAuthorizationScopes.fullName,
+    ],
+    nonce: hashedNonce,
+  );
+} on SignInWithAppleException catch (e) {
+  // ignore: avoid_print
+  print('Apple credential fetch failed: $e');
+  throw Exception('Apple sign-in failed. Please try again.');
+}
 
-      final identityToken = appleCredential.identityToken;
-      if (identityToken == null || identityToken.trim().isEmpty) {
-        throw Exception('Apple sign-in did not return an identity token. Please try again.');
-      }
-
+final identityToken = appleCredential.identityToken;
+if (identityToken == null || identityToken.trim().isEmpty) {
+  throw Exception('Apple sign-in did not return an identity token. Please try again.');
+}
       await user.reauthenticateWithCredential(
         OAuthProvider('apple.com').credential(
           idToken: identityToken,

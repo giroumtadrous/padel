@@ -69,9 +69,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     try {
       final user = await _authService.signInWithApple();
       emit(AuthAuthenticated(user));
-    } catch (e) {
-      emit(AuthError(_friendlyError(e.toString())));
-    }
+} catch (e) {
+  emit(AuthError('DEBUG: ${e.toString()}'));
+}
   }
 
   Future<void> _onRefreshCurrentUser(RefreshCurrentUser event, Emitter<AuthState> emit) async {
