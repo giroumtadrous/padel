@@ -1,5 +1,3 @@
-import 'dart:io' show Platform;
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -69,14 +67,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     isLoading: state is AuthLoading,
                   ),
                 ),
-                const SizedBox(height: 24),
-                _buildDivider(),
-                const SizedBox(height: 24),
-                _buildGoogleButton(),
-                if (!kIsWeb && Platform.isIOS) ...[
-                  const SizedBox(height: 12),
-                  _buildAppleButton(),
-                ],
                 // ── Inline error banner ──────────────────────────────────
                 BlocBuilder<AuthBloc, AuthState>(
                   builder: (context, state) {
@@ -172,43 +162,6 @@ class _LoginScreenState extends State<LoginScreen> {
         if (v.length < 6) return 'Minimum 6 characters';
         return null;
       },
-    );
-  }
-
-  Widget _buildDivider() {
-    return Row(
-      children: [
-        const Expanded(child: Divider()),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Text('or continue with', style: Theme.of(context).textTheme.bodySmall),
-        ),
-        const Expanded(child: Divider()),
-      ],
-    );
-  }
-
-  Widget _buildGoogleButton() {
-    return BlocBuilder<AuthBloc, AuthState>(
-      builder: (context, state) => AppButton(
-        label: 'Continue with Google',
-        onPressed: () => context.read<AuthBloc>().add(const AuthLoginWithGoogle()),
-        isLoading: state is AuthLoading,
-        isOutlined: true,
-        icon: const Icon(Icons.g_mobiledata_rounded, size: 22, color: AppColors.primary),
-      ),
-    );
-  }
-
-  Widget _buildAppleButton() {
-    return BlocBuilder<AuthBloc, AuthState>(
-      builder: (context, state) => AppButton(
-        label: 'Continue with Apple',
-        onPressed: () => context.read<AuthBloc>().add(const AuthLoginWithApple()),
-        isLoading: state is AuthLoading,
-        isOutlined: true,
-        icon: const Icon(Icons.apple_rounded, size: 22, color: AppColors.textPrimary),
-      ),
     );
   }
 
