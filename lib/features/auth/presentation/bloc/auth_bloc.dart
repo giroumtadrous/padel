@@ -218,8 +218,12 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }
 
   String _friendlyError(String raw) {
-    if (raw.contains('user-not-found') || raw.contains('wrong-password') || raw.contains('invalid-credential')) {
+    if (raw.contains('user-not-found') || raw.contains('wrong-password')) {
       return 'Incorrect email or password.';
+    }
+    if (raw.contains('invalid-credential')) {
+      if (raw.contains('apple')) return 'Apple sign-in failed. Please check your Firebase Apple configuration (invalid-credential).';
+      return 'Invalid credential. Please try again.';
     }
     if (raw.contains('email-already-in-use')) return 'An account with this email already exists.';
     if (raw.contains('account-exists-with-different-credential')) {
