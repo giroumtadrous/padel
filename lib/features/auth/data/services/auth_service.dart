@@ -3,7 +3,8 @@ import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart' show TargetPlatform, defaultTargetPlatform, kIsWeb;
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:padel/core/constants/app_constants.dart';
@@ -21,27 +22,39 @@ class AuthService {
   // instead of staying stuck.
   AuthCredential? _pendingLinkCredential;
   String? _pendingLinkEmail;
+  String? _pendingAppleAuthorizationCode;
 
   String? get pendingLinkEmail => _pendingLinkEmail;
+
+  String? get currentUserPrimaryProvider {
+    final providerIds =
+        _auth.currentUser?.providerData
+            .map((provider) => provider.providerId)
+            .toSet() ??
+        <String>{};
+    if (providerIds.contains('apple.com')) return 'apple.com';
+    if (providerIds.contains('google.com')) return 'google.com';
+    if (providerIds.contains('password')) return 'password';
+    return null;
+  }
 
   AuthService({
     FirebaseAuth? auth,
     FirebaseFirestore? db,
     GoogleSignIn? googleSignIn,
-  })  : _auth = auth ?? FirebaseAuth.instance,
-        _db = db ?? FirebaseFirestore.instance,
-        _googleSignIn = googleSignIn ?? GoogleSignIn();
+  }) : _auth = auth ?? FirebaseAuth.instance,
+       _db = db ?? FirebaseFirestore.instance,
+       _googleSignIn = googleSignIn ?? GoogleSignIn();
 
-  Stream<UserModel?> get authStateChanges => _auth.authStateChanges().asyncMap(
-        (firebaseUser) async {
-          if (firebaseUser == null) return null;
-          try {
-            return await _fetchUserModel(firebaseUser.uid);
-          } catch (_) {
-            return null;
-          }
-        },
-      );
+  Stream<UserModel?> get authStateChanges =>
+      _auth.authStateChanges().asyncMap((firebaseUser) async {
+        if (firebaseUser == null) return null;
+        try {
+          return await _fetchUserModel(firebaseUser.uid);
+        } catch (_) {
+          return null;
+        }
+      });
 
   Future<UserModel?> get currentUser async {
     final firebaseUser = _auth.currentUser;
@@ -49,14 +62,20 @@ class AuthService {
     return _fetchUserModel(firebaseUser.uid);
   }
 
-  Future<UserModel> signInWithEmailAndPassword(String email, String password) async {
+  Future<UserModel> signInWithEmailAndPassword(
+    String email,
+    String password,
+  ) async {
     final credential = await _auth.signInWithEmailAndPassword(
       email: email,
       password: password,
     );
     await _linkPendingCredentialIfAny();
     final uid = credential.user!.uid;
-    final doc = await _db.collection(AppConstants.usersCollection).doc(uid).get();
+    final doc = await _db
+        .collection(AppConstants.usersCollection)
+        .doc(uid)
+        .get();
     if (!doc.exists) {
       final user = UserModel(
         uid: uid,
@@ -65,7 +84,10 @@ class AuthService {
         photoUrl: credential.user!.photoURL,
         createdAt: DateTime.now(),
       );
-      await _db.collection(AppConstants.usersCollection).doc(uid).set(user.toJson());
+      await _db
+          .collection(AppConstants.usersCollection)
+          .doc(uid)
+          .set(user.toJson());
       return user;
     }
     return UserModel.fromJson(doc.data()!);
@@ -144,13 +166,14 @@ class AuthService {
 
     final identityToken = appleCredential.identityToken;
     if (identityToken == null || identityToken.trim().isEmpty) {
-      throw Exception('Apple sign-in did not return an identity token. Please try again.');
+      throw Exception(
+        'Apple sign-in did not return an identity token. Please try again.',
+      );
     }
 
-    final oauthCredential = OAuthProvider('apple.com').credential(
-      idToken: identityToken,
-      rawNonce: rawNonce,
-    );
+    final oauthCredential = OAuthProvider(
+      'apple.com',
+    ).credential(idToken: identityToken, rawNonce: rawNonce);
 
     final UserCredential userCredential;
     try {
@@ -165,13 +188,17 @@ class AuthService {
     await _linkPendingCredentialIfAny();
     final uid = userCredential.user!.uid;
 
-    final displayName = userCredential.user!.displayName ??
-        [appleCredential.givenName, appleCredential.familyName]
-            .whereType<String>()
-            .join(' ')
-            .trim();
+    final displayName =
+        userCredential.user!.displayName ??
+        [
+          appleCredential.givenName,
+          appleCredential.familyName,
+        ].whereType<String>().join(' ').trim();
 
-    final doc = await _db.collection(AppConstants.usersCollection).doc(uid).get();
+    final doc = await _db
+        .collection(AppConstants.usersCollection)
+        .doc(uid)
+        .get();
     if (!doc.exists) {
       final user = UserModel(
         uid: uid,
@@ -182,7 +209,10 @@ class AuthService {
         skillLevel: 0.0,
         createdAt: DateTime.now(),
       );
-      await _db.collection(AppConstants.usersCollection).doc(uid).set(user.toJson());
+      await _db
+          .collection(AppConstants.usersCollection)
+          .doc(uid)
+          .set(user.toJson());
       return user;
     }
 
@@ -193,7 +223,10 @@ class AuthService {
     const chars =
         '0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._';
     final random = Random.secure();
-    return List.generate(length, (_) => chars[random.nextInt(chars.length)]).join();
+    return List.generate(
+      length,
+      (_) => chars[random.nextInt(chars.length)],
+    ).join();
   }
 
   String _sha256OfString(String input) {
@@ -249,7 +282,10 @@ class AuthService {
 
     final uid = userCredential.uid;
 
-    final doc = await _db.collection(AppConstants.usersCollection).doc(uid).get();
+    final doc = await _db
+        .collection(AppConstants.usersCollection)
+        .doc(uid)
+        .get();
     if (!doc.exists) {
       final user = UserModel(
         uid: uid,
@@ -260,7 +296,10 @@ class AuthService {
         skillLevel: 0.0,
         createdAt: DateTime.now(),
       );
-      await _db.collection(AppConstants.usersCollection).doc(uid).set(user.toJson());
+      await _db
+          .collection(AppConstants.usersCollection)
+          .doc(uid)
+          .set(user.toJson());
       return user;
     }
 
@@ -271,10 +310,7 @@ class AuthService {
     if (kIsWeb) {
       await _auth.signOut();
     } else {
-      await Future.wait([
-        _auth.signOut(),
-        _googleSignIn.signOut(),
-      ]);
+      await Future.wait([_auth.signOut(), _googleSignIn.signOut()]);
     }
   }
 
@@ -285,12 +321,16 @@ class AuthService {
     final user = _auth.currentUser;
     if (user == null) throw Exception('Not signed in');
 
-    final providerIds = user.providerData.map((provider) => provider.providerId).toSet();
+    final providerIds = user.providerData
+        .map((provider) => provider.providerId)
+        .toSet();
 
     if (providerIds.contains('password')) {
       final email = user.email;
       if (email == null || email.isEmpty) {
-        throw Exception('This account does not have an email address for re-authentication.');
+        throw Exception(
+          'This account does not have an email address for re-authentication.',
+        );
       }
       if (password == null || password.isEmpty) {
         throw Exception('Password is required to delete this account.');
@@ -335,29 +375,32 @@ class AuthService {
       final rawNonce = _generateNonce();
       final hashedNonce = _sha256OfString(rawNonce);
       final AuthorizationCredentialAppleID appleCredential;
-try {
-  appleCredential = await SignInWithApple.getAppleIDCredential(
-    scopes: [
-      AppleIDAuthorizationScopes.email,
-      AppleIDAuthorizationScopes.fullName,
-    ],
-    nonce: hashedNonce,
-  );
-} on SignInWithAppleException catch (e) {
-  // ignore: avoid_print
-  print('Apple credential fetch failed: $e');
-  throw Exception('Apple sign-in failed. Please try again.');
-}
+      try {
+        appleCredential = await SignInWithApple.getAppleIDCredential(
+          scopes: [
+            AppleIDAuthorizationScopes.email,
+            AppleIDAuthorizationScopes.fullName,
+          ],
+          nonce: hashedNonce,
+        );
+      } on SignInWithAppleException catch (e) {
+        // ignore: avoid_print
+        print('Apple credential fetch failed: $e');
+        throw Exception('Apple sign-in failed. Please try again.');
+      }
 
-final identityToken = appleCredential.identityToken;
-if (identityToken == null || identityToken.trim().isEmpty) {
-  throw Exception('Apple sign-in did not return an identity token. Please try again.');
-}
+      final identityToken = appleCredential.identityToken;
+      if (identityToken == null || identityToken.trim().isEmpty) {
+        throw Exception(
+          'Apple sign-in did not return an identity token. Please try again.',
+        );
+      }
+
+      _pendingAppleAuthorizationCode = appleCredential.authorizationCode;
       await user.reauthenticateWithCredential(
-        OAuthProvider('apple.com').credential(
-          idToken: identityToken,
-          rawNonce: rawNonce,
-        ),
+        OAuthProvider(
+          'apple.com',
+        ).credential(idToken: identityToken, rawNonce: rawNonce),
       );
       return;
     }
@@ -373,6 +416,19 @@ if (identityToken == null || identityToken.trim().isEmpty) {
 
     await reauthenticateForDeletion(password: password);
     final uid = user.uid;
+
+    // Apple requires revoking the token before deleting an Apple-authenticated
+    // account, since Firebase never stores the token itself.
+    final appleCode = _pendingAppleAuthorizationCode;
+    if (appleCode != null) {
+      _pendingAppleAuthorizationCode = null;
+      try {
+        await _auth.revokeTokenWithAuthorizationCode(appleCode);
+      } catch (_) {
+        // Best-effort — don't block deletion if revocation fails (e.g. code
+        // already used, network hiccup); the account still gets deleted.
+      }
+    }
 
     await _deleteAssociatedUserData(uid);
     await user.delete();
@@ -420,7 +476,8 @@ if (identityToken == null || identityToken.trim().isEmpty) {
       verificationCompleted: (credential) {
         onAutoVerified?.call(credential);
       },
-      verificationFailed: (e) => onFailed(e.message ?? 'Phone verification failed'),
+      verificationFailed: (e) =>
+          onFailed(e.message ?? 'Phone verification failed'),
       codeSent: (verificationId, _) => onCodeSent(verificationId),
       codeAutoRetrievalTimeout: (verificationId) {},
     );
@@ -467,7 +524,9 @@ if (identityToken == null || identityToken.trim().isEmpty) {
           // signInWithCredential fully replaces the current session in one
           // atomic step (no intermediate signed-out state), so this doesn't
           // bounce the user back to the login screen.
-          final existingUserCredential = await _auth.signInWithCredential(credential);
+          final existingUserCredential = await _auth.signInWithCredential(
+            credential,
+          );
           activeUid = existingUserCredential.user!.uid;
         } else {
           throw Exception(_friendlyPhoneLinkError(e));
@@ -508,7 +567,10 @@ if (identityToken == null || identityToken.trim().isEmpty) {
 
   /// Toggles a venue in/out of the user's favorites list.
   Future<UserModel> toggleFavorite(String uid, String venueId) async {
-    final doc = await _db.collection(AppConstants.usersCollection).doc(uid).get();
+    final doc = await _db
+        .collection(AppConstants.usersCollection)
+        .doc(uid)
+        .get();
     if (!doc.exists) throw Exception('User profile not found');
 
     final user = UserModel.fromJson(doc.data()!);
@@ -520,10 +582,9 @@ if (identityToken == null || identityToken.trim().isEmpty) {
       favs.add(venueId);
     }
 
-    await _db
-        .collection(AppConstants.usersCollection)
-        .doc(uid)
-        .update({'favoriteVenueIds': favs});
+    await _db.collection(AppConstants.usersCollection).doc(uid).update({
+      'favoriteVenueIds': favs,
+    });
 
     return _fetchUserModel(uid);
   }
@@ -538,11 +599,15 @@ if (identityToken == null || identityToken.trim().isEmpty) {
 
   /// Deducts [amount] from wallet balance. Throws if insufficient funds.
   Future<UserModel> deductWallet(String uid, double amount) async {
-    final doc = await _db.collection(AppConstants.usersCollection).doc(uid).get();
+    final doc = await _db
+        .collection(AppConstants.usersCollection)
+        .doc(uid)
+        .get();
     if (!doc.exists) throw Exception('User profile not found');
 
     final user = UserModel.fromJson(doc.data()!);
-    if (user.walletBalance < amount) throw Exception('Insufficient wallet balance');
+    if (user.walletBalance < amount)
+      throw Exception('Insufficient wallet balance');
 
     await _db.collection(AppConstants.usersCollection).doc(uid).update({
       'walletBalance': FieldValue.increment(-amount),
@@ -552,7 +617,10 @@ if (identityToken == null || identityToken.trim().isEmpty) {
 
   /// Records a loyalty booking. Sets eligible=true when count reaches a multiple of 5.
   Future<UserModel> recordLoyaltyBooking(String uid) async {
-    final doc = await _db.collection(AppConstants.usersCollection).doc(uid).get();
+    final doc = await _db
+        .collection(AppConstants.usersCollection)
+        .doc(uid)
+        .get();
     if (!doc.exists) throw Exception('User profile not found');
 
     final user = UserModel.fromJson(doc.data()!);
@@ -636,13 +704,12 @@ if (identityToken == null || identityToken.trim().isEmpty) {
 
     for (final doc in snap.docs) {
       final booking = BookingModel.fromJson({...doc.data(), 'id': doc.id});
-      if (booking.status == BookingStatus.upcoming && booking.startTime.isAfter(DateTime.now())) {
+      if (booking.status == BookingStatus.upcoming &&
+          booking.startTime.isAfter(DateTime.now())) {
         await _cancelBookingAndReleaseSlots(booking);
       }
 
-      await doc.reference.update({
-        'userId': AppConstants.deletedAccountUserId,
-      });
+      await doc.reference.update({'userId': AppConstants.deletedAccountUserId});
     }
   }
 
@@ -665,15 +732,20 @@ if (identityToken == null || identityToken.trim().isEmpty) {
       final data = doc.data();
       if ((data['organizerId'] as String? ?? '') == uid) continue;
 
-      final participantIds = List<String>.from(data['participantIds'] as List? ?? []);
+      final participantIds = List<String>.from(
+        data['participantIds'] as List? ?? [],
+      );
       participantIds.remove(uid);
-      final totalSlots = data['totalSlots'] as int? ?? AppConstants.maxMatchPlayers;
+      final totalSlots =
+          data['totalSlots'] as int? ?? AppConstants.maxMatchPlayers;
       final updatedFilledSlots = (data['filledSlots'] as int? ?? 1) - 1;
 
       await doc.reference.update({
         'participantIds': participantIds,
         'filledSlots': updatedFilledSlots < 1 ? 1 : updatedFilledSlots,
-        'status': updatedFilledSlots >= totalSlots ? AppConstants.matchFull : AppConstants.matchOpen,
+        'status': updatedFilledSlots >= totalSlots
+            ? AppConstants.matchFull
+            : AppConstants.matchOpen,
       });
     }
   }
@@ -694,7 +766,9 @@ if (identityToken == null || identityToken.trim().isEmpty) {
   }
 
   Future<void> _cancelBookingAndReleaseSlots(BookingModel booking) async {
-    final bookingRef = _db.collection(AppConstants.bookingsCollection).doc(booking.id);
+    final bookingRef = _db
+        .collection(AppConstants.bookingsCollection)
+        .doc(booking.id);
     await _db.runTransaction((tx) async {
       final snap = await tx.get(bookingRef);
       if (!snap.exists) return;
@@ -724,7 +798,10 @@ if (identityToken == null || identityToken.trim().isEmpty) {
   }
 
   Future<UserModel> _fetchUserModel(String uid) async {
-    final doc = await _db.collection(AppConstants.usersCollection).doc(uid).get();
+    final doc = await _db
+        .collection(AppConstants.usersCollection)
+        .doc(uid)
+        .get();
     if (!doc.exists) throw Exception('User profile not found');
     return UserModel.fromJson(doc.data()!);
   }

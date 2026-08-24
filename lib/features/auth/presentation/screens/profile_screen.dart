@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:go_router/go_router.dart';
 import 'package:padel/core/constants/app_colors.dart';
 import 'package:padel/core/constants/app_constants.dart';
@@ -49,6 +48,7 @@ class _ProfileContent extends StatefulWidget {
 class _ProfileContentState extends State<_ProfileContent> {
   late double _skillLevel;
   late String _preferredSide;
+  String? _currentUserPrimaryProvider;
   bool _deletingAccount = false;
 
   @override
@@ -56,6 +56,9 @@ class _ProfileContentState extends State<_ProfileContent> {
     super.initState();
     _skillLevel = widget.user.skillLevel;
     _preferredSide = widget.user.preferredSide;
+    _currentUserPrimaryProvider = context
+        .read<AuthService>()
+        .currentUserPrimaryProvider;
   }
 
   @override
@@ -128,14 +131,19 @@ class _ProfileContentState extends State<_ProfileContent> {
                               ),
                             ),
                             const SizedBox(width: 8),
-                            Text(_skillLabel(user.skillLevel),
-                                style: Theme.of(context).textTheme.bodyMedium),
+                            Text(
+                              _skillLabel(user.skillLevel),
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
                           ],
                         ),
                         if (user.pendingSkillLevel != null) ...[
                           const SizedBox(height: 8),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
                             decoration: BoxDecoration(
                               color: AppColors.warning.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(8),
@@ -143,7 +151,11 @@ class _ProfileContentState extends State<_ProfileContent> {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(Icons.hourglass_top_rounded, size: 14, color: AppColors.warning),
+                                const Icon(
+                                  Icons.hourglass_top_rounded,
+                                  size: 14,
+                                  color: AppColors.warning,
+                                ),
                                 const SizedBox(width: 6),
                                 Text(
                                   'Request pending admin review: ${user.pendingSkillLevel!.toStringAsFixed(1)}',
@@ -162,7 +174,9 @@ class _ProfileContentState extends State<_ProfileContent> {
                               activeTrackColor: AppColors.primary,
                               thumbColor: AppColors.primary,
                               inactiveTrackColor: AppColors.divider,
-                              overlayColor: AppColors.primary.withValues(alpha: 0.12),
+                              overlayColor: AppColors.primary.withValues(
+                                alpha: 0.12,
+                              ),
                             ),
                             child: Slider(
                               value: _skillLevel,
@@ -196,17 +210,21 @@ class _ProfileContentState extends State<_ProfileContent> {
                         _SideOption(
                           label: 'Right Side',
                           icon: Icons.arrow_forward_rounded,
-                          isSelected: _preferredSide == AppConstants.sideForerhand,
+                          isSelected:
+                              _preferredSide == AppConstants.sideForerhand,
                           onTap: () => setState(
-                              () => _preferredSide = AppConstants.sideForerhand),
+                            () => _preferredSide = AppConstants.sideForerhand,
+                          ),
                         ),
                         const SizedBox(width: 12),
                         _SideOption(
                           label: 'Left Side',
                           icon: Icons.arrow_back_rounded,
-                          isSelected: _preferredSide == AppConstants.sideBackhand,
+                          isSelected:
+                              _preferredSide == AppConstants.sideBackhand,
                           onTap: () => setState(
-                              () => _preferredSide = AppConstants.sideBackhand),
+                            () => _preferredSide = AppConstants.sideBackhand,
+                          ),
                         ),
                       ],
                     ),
@@ -214,15 +232,13 @@ class _ProfileContentState extends State<_ProfileContent> {
                   const SizedBox(height: 16),
 
                   // Save button
-                  AppButton(
-                    label: 'Save Changes',
-                    onPressed: _saveChanges,
-                  ),
+                  AppButton(label: 'Save Changes', onPressed: _saveChanges),
                   const SizedBox(height: 12),
                   AppButton(
                     label: 'Sign Out',
                     isOutlined: true,
-                    onPressed: () => context.read<AuthBloc>().add(const AuthLoggedOut()),
+                    onPressed: () =>
+                        context.read<AuthBloc>().add(const AuthLoggedOut()),
                   ),
                   const SizedBox(height: 12),
                   AppButton(
@@ -259,27 +275,32 @@ class _ProfileContentState extends State<_ProfileContent> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Continue', style: TextStyle(color: AppColors.error)),
+            child: Text(
+              _currentUserPrimaryProvider == 'password'
+                  ? 'Continue'
+                  : 'Confirm Deletion',
+              style: const TextStyle(color: AppColors.error),
+            ),
           ),
         ],
       ),
     );
     if (confirmed != true || !mounted) return;
 
-    final providerIds = FirebaseAuth.instance.currentUser?.providerData
-            .map((provider) => provider.providerId)
-            .toSet() ??
-        <String>{};
-
     String? password;
-    if (providerIds.contains('password')) {
+    if (_currentUserPrimaryProvider == 'password') {
       password = await _promptForPassword();
       if (password == null || !mounted) return;
     }
 
     setState(() => _deletingAccount = true);
     try {
-      await context.read<AuthService>().deleteCurrentAccount(password: password);
+      final authService = context.read<AuthService>();
+      if (password == null) {
+        await authService.deleteCurrentAccount();
+      } else {
+        await authService.deleteCurrentAccount(password: password);
+      }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Your account was deleted successfully.')),
@@ -312,8 +333,12 @@ class _ProfileContentState extends State<_ProfileContent> {
             child: const Text('Cancel'),
           ),
           TextButton(
-            onPressed: () => Navigator.pop(dialogContext, passwordController.text),
-            child: const Text('Delete', style: TextStyle(color: AppColors.error)),
+            onPressed: () =>
+                Navigator.pop(dialogContext, passwordController.text),
+            child: const Text(
+              'Delete',
+              style: TextStyle(color: AppColors.error),
+            ),
           ),
         ],
       ),
@@ -341,7 +366,9 @@ class _ProfileContentState extends State<_ProfileContent> {
                         context: context,
                         builder: (dialogContext) => AlertDialog(
                           title: const Text('Sign Out'),
-                          content: const Text('Are you sure you want to sign out?'),
+                          content: const Text(
+                            'Are you sure you want to sign out?',
+                          ),
                           actions: [
                             TextButton(
                               onPressed: () => Navigator.pop(dialogContext),
@@ -370,8 +397,10 @@ class _ProfileContentState extends State<_ProfileContent> {
                                 Navigator.pop(dialogContext);
                                 authBloc.add(const AuthLoggedOut());
                               },
-                              child: const Text('Sign Out',
-                                  style: TextStyle(color: AppColors.error)),
+                              child: const Text(
+                                'Sign Out',
+                                style: TextStyle(color: AppColors.error),
+                              ),
                             ),
                           ],
                         ),
@@ -379,7 +408,10 @@ class _ProfileContentState extends State<_ProfileContent> {
                     },
                     child: const Text(
                       'Sign Out',
-                      style: TextStyle(color: AppColors.textBlueGrey, fontSize: 13),
+                      style: TextStyle(
+                        color: AppColors.textBlueGrey,
+                        fontSize: 13,
+                      ),
                     ),
                   ),
                 ],
@@ -396,9 +428,10 @@ class _ProfileContentState extends State<_ProfileContent> {
                             ? user.displayName[0].toUpperCase()
                             : '?',
                         style: const TextStyle(
-                            fontSize: 30,
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700),
+                          fontSize: 30,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
                       )
                     : null,
               ),
@@ -414,12 +447,18 @@ class _ProfileContentState extends State<_ProfileContent> {
               const SizedBox(height: 4),
               Text(
                 user.email,
-                style: const TextStyle(color: AppColors.textBlueGrey, fontSize: 12),
+                style: const TextStyle(
+                  color: AppColors.textBlueGrey,
+                  fontSize: 12,
+                ),
               ),
               if (user.isAdmin) ...[
                 const SizedBox(height: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.primary.withValues(alpha: 0.2),
                     border: Border.all(color: AppColors.primary),
@@ -448,10 +487,10 @@ class _ProfileContentState extends State<_ProfileContent> {
         _StatBox(value: user.skillLevel.toStringAsFixed(1), label: 'Skill'),
         _StatBox(value: '${user.matchesPlayed}', label: 'Matches'),
         _StatBox(
-            value: user.preferredSide == AppConstants.sideForerhand ? 'R' : 'L',
-            label: 'Side'),
-        _StatBox(
-            value: '${user.favoriteVenueIds.length}', label: 'Favorites'),
+          value: user.preferredSide == AppConstants.sideForerhand ? 'R' : 'L',
+          label: 'Side',
+        ),
+        _StatBox(value: '${user.favoriteVenueIds.length}', label: 'Favorites'),
       ],
     );
   }
@@ -475,8 +514,11 @@ class _ProfileContentState extends State<_ProfileContent> {
                 color: AppColors.navyLight,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.account_balance_wallet_rounded,
-                  color: AppColors.gold, size: 20),
+              child: const Icon(
+                Icons.account_balance_wallet_rounded,
+                color: AppColors.gold,
+                size: 20,
+              ),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -485,7 +527,10 @@ class _ProfileContentState extends State<_ProfileContent> {
                 children: [
                   const Text(
                     'Wallet Balance',
-                    style: TextStyle(color: AppColors.textBlueGrey, fontSize: 12),
+                    style: TextStyle(
+                      color: AppColors.textBlueGrey,
+                      fontSize: 12,
+                    ),
                   ),
                   Text(
                     'EGP ${user.walletBalance.toStringAsFixed(2)}',
@@ -498,8 +543,11 @@ class _ProfileContentState extends State<_ProfileContent> {
                 ],
               ),
             ),
-            const Icon(Icons.arrow_forward_ios_rounded,
-                size: 14, color: AppColors.textBlueGrey),
+            const Icon(
+              Icons.arrow_forward_ios_rounded,
+              size: 14,
+              color: AppColors.textBlueGrey,
+            ),
           ],
         ),
       ),
@@ -519,7 +567,11 @@ class _ProfileContentState extends State<_ProfileContent> {
         ),
         child: Row(
           children: [
-            const Icon(Icons.phone_android_rounded, color: AppColors.warning, size: 22),
+            const Icon(
+              Icons.phone_android_rounded,
+              color: AppColors.warning,
+              size: 22,
+            ),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
@@ -540,7 +592,11 @@ class _ProfileContentState extends State<_ProfileContent> {
                 ],
               ),
             ),
-            const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textHint),
+            const Icon(
+              Icons.arrow_forward_ios_rounded,
+              size: 14,
+              color: AppColors.textHint,
+            ),
           ],
         ),
       ),
@@ -548,9 +604,11 @@ class _ProfileContentState extends State<_ProfileContent> {
   }
 
   Widget _buildLoyaltyCard(BuildContext context, UserModel user) {
-    final progress = (user.loyaltyBookingCount % AppConstants.loyaltyBookingsRequired) /
+    final progress =
+        (user.loyaltyBookingCount % AppConstants.loyaltyBookingsRequired) /
         AppConstants.loyaltyBookingsRequired;
-    final remaining = AppConstants.loyaltyBookingsRequired -
+    final remaining =
+        AppConstants.loyaltyBookingsRequired -
         (user.loyaltyBookingCount % AppConstants.loyaltyBookingsRequired);
 
     return Container(
@@ -566,7 +624,11 @@ class _ProfileContentState extends State<_ProfileContent> {
         children: [
           Row(
             children: [
-              const Icon(Icons.card_giftcard_rounded, color: AppColors.gold, size: 20),
+              const Icon(
+                Icons.card_giftcard_rounded,
+                color: AppColors.gold,
+                size: 20,
+              ),
               const SizedBox(width: 8),
               const Text(
                 'Loyalty Card',
@@ -579,8 +641,10 @@ class _ProfileContentState extends State<_ProfileContent> {
               const Spacer(),
               if (user.loyaltyDiscountEligible)
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.successLight,
                     borderRadius: BorderRadius.circular(6),
@@ -611,7 +675,10 @@ class _ProfileContentState extends State<_ProfileContent> {
             user.loyaltyDiscountEligible
                 ? 'Discount applied on your next booking!'
                 : '$remaining more booking${remaining == 1 ? '' : 's'} to earn 50% off',
-            style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppColors.textSecondary,
+            ),
           ),
         ],
       ),
@@ -632,7 +699,11 @@ class _ProfileContentState extends State<_ProfileContent> {
         children: [
           const Row(
             children: [
-              Icon(Icons.info_outline_rounded, color: AppColors.secondary, size: 16),
+              Icon(
+                Icons.info_outline_rounded,
+                color: AppColors.secondary,
+                size: 16,
+              ),
               SizedBox(width: 8),
               Text(
                 'App Info',
@@ -669,7 +740,9 @@ class _ProfileContentState extends State<_ProfileContent> {
   }
 
   Future<void> _openPrivacyPolicy() async {
-    final uri = Uri.parse('https://www.termsfeed.com/live/b26df785-a9b2-4ad7-9505-81935b1ee08f');
+    final uri = Uri.parse(
+      'https://www.termsfeed.com/live/b26df785-a9b2-4ad7-9505-81935b1ee08f',
+    );
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {
@@ -716,18 +789,20 @@ class _ProfileContentState extends State<_ProfileContent> {
   }
 
   void _saveChanges() {
-    context.read<AuthBloc>().add(AuthProfileUpdated(
-          preferredSide: _preferredSide,
-        ));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Profile updated')),
+    context.read<AuthBloc>().add(
+      AuthProfileUpdated(preferredSide: _preferredSide),
     );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Profile updated')));
   }
 
   void _requestSkillLevel() {
     context.read<AuthBloc>().add(RequestSkillLevelChange(_skillLevel));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Skill level change submitted for admin review')),
+      const SnackBar(
+        content: Text('Skill level change submitted for admin review'),
+      ),
     );
   }
 
@@ -797,17 +872,22 @@ class _SideOption extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary.withValues(alpha: 0.1) : Colors.transparent,
+          color: isSelected
+              ? AppColors.primary.withValues(alpha: 0.1)
+              : Colors.transparent,
           border: Border.all(
-              color: isSelected ? AppColors.primary : AppColors.divider),
+            color: isSelected ? AppColors.primary : AppColors.divider,
+          ),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon,
-                size: 14,
-                color: isSelected ? AppColors.primary : AppColors.textSecondary),
+            Icon(
+              icon,
+              size: 14,
+              color: isSelected ? AppColors.primary : AppColors.textSecondary,
+            ),
             const SizedBox(width: 6),
             Text(
               label,
@@ -845,7 +925,11 @@ class _AppInfoTile extends StatelessWidget {
       leading: Icon(icon, color: AppColors.primary),
       title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
       subtitle: Text(subtitle),
-      trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textHint),
+      trailing: const Icon(
+        Icons.arrow_forward_ios_rounded,
+        size: 14,
+        color: AppColors.textHint,
+      ),
     );
   }
 }

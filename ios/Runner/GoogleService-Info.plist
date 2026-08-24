@@ -3,9 +3,11 @@
 <plist version="1.0">
 <dict>
 	<key>CLIENT_ID</key>
-	<string>297754277020-a9dle8q3q0n17o8l33fg9qks21j7bde5.apps.googleusercontent.com</string>
+	<string>297754277020-igivi9ukc9dl63dh95tfghjj23kvmkub.apps.googleusercontent.com</string>
 	<key>REVERSED_CLIENT_ID</key>
-	<string>com.googleusercontent.apps.297754277020-a9dle8q3q0n17o8l33fg9qks21j7bde5</string>
+	<string>com.googleusercontent.apps.297754277020-igivi9ukc9dl63dh95tfghjj23kvmkub</string>
+	<key>ANDROID_CLIENT_ID</key>
+	<string>297754277020-m6gc23e6a6a11jvmcess5ndtt8q342ur.apps.googleusercontent.com</string>
 	<key>API_KEY</key>
 	<string>AIzaSyAWGPUmoXg9o101q29rNd5U0s5iUvakGFE</string>
 	<key>GCM_SENDER_ID</key>
@@ -13,22 +15,22 @@
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.example.padel</string>
+	<string>com.example.padel.JBH23V2AK</string>
 	<key>PROJECT_ID</key>
 	<string>padel-5bb05</string>
 	<key>STORAGE_BUCKET</key>
 	<string>padel-5bb05.firebasestorage.app</string>
 	<key>IS_ADS_ENABLED</key>
-	<false/>
+	<false></false>
 	<key>IS_ANALYTICS_ENABLED</key>
-	<false/>
+	<false></false>
 	<key>IS_APPINVITE_ENABLED</key>
-	<true/>
+	<true></true>
 	<key>IS_GCM_ENABLED</key>
-	<true/>
+	<true></true>
 	<key>IS_SIGNIN_ENABLED</key>
-	<true/>
+	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:297754277020:ios:6a54819a2ab003568b2959</string>
+	<string>1:297754277020:ios:e515b8e2436a01978b2959</string>
 </dict>
 </plist>
