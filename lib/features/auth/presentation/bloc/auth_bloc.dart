@@ -69,9 +69,15 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     try {
       final user = await _authService.signInWithApple();
       emit(AuthAuthenticated(user));
-} catch (e) {
-  emit(AuthError('DEBUG: ${e.toString()}'));
-}
+    } catch (e) {
+      // Silently absorb deliberate cancellations — no error snackbar needed.
+      final msg = e.toString();
+      if (msg.contains('canceled') || msg.contains('cancelled') || msg.contains('AuthorizationErrorCode.canceled')) {
+        emit(const AuthUnauthenticated());
+        return;
+      }
+      emit(AuthError(_friendlyError(msg)));
+    }
   }
 
   Future<void> _onRefreshCurrentUser(RefreshCurrentUser event, Emitter<AuthState> emit) async {
