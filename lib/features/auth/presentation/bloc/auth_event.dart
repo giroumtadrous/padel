@@ -110,3 +110,8 @@ class SaveFcmToken extends AuthEvent {
   @override
   List<Object?> get props => [token];
 }
+
+/// Clears an [AuthError] state — used by the inline error banner's × button.
+class AuthDismissError extends AuthEvent {
+  const AuthDismissError();
+}

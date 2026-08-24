@@ -28,6 +28,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<SaveFcmToken>(_onSaveFcmToken);
     on<RefreshCurrentUser>(_onRefreshCurrentUser);
     on<SkipPhoneVerification>(_onSkipPhoneVerification);
+    on<AuthDismissError>(_onDismissError);
   }
 
   Future<void> _onStarted(AuthStarted event, Emitter<AuthState> emit) async {
@@ -241,6 +242,12 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       return true;
     }());
     return 'Something went wrong. Please try again.';
+  }
+
+  Future<void> _onDismissError(AuthDismissError event, Emitter<AuthState> emit) async {
+    if (state is AuthError) {
+      emit(const AuthUnauthenticated());
+    }
   }
 
   @override

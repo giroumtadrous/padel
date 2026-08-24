@@ -39,56 +39,71 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocListener<AuthBloc, AuthState>(
-      listener: (context, state) {
-        if (state is AuthError) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(state.message), backgroundColor: AppColors.error),
-          );
-        }
-      },
-      child: Scaffold(
-        body: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 40),
-                  _buildHeader(context),
-                  const SizedBox(height: 40),
-                  _buildEmailField(),
-                  const SizedBox(height: 16),
-                  _buildPasswordField(),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: _showForgotPassword,
-                      child: const Text('Forgot password?'),
-                    ),
+    return Scaffold(
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 40),
+                _buildHeader(context),
+                const SizedBox(height: 40),
+                _buildEmailField(),
+                const SizedBox(height: 16),
+                _buildPasswordField(),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: _showForgotPassword,
+                    child: const Text('Forgot password?'),
                   ),
-                  const SizedBox(height: 8),
-                  BlocBuilder<AuthBloc, AuthState>(
-                    builder: (context, state) => AppButton(
-                      label: 'Sign In',
-                      onPressed: _submit,
-                      isLoading: state is AuthLoading,
-                    ),
+                ),
+                const SizedBox(height: 8),
+                BlocBuilder<AuthBloc, AuthState>(
+                  builder: (context, state) => AppButton(
+                    label: 'Sign In',
+                    onPressed: _submit,
+                    isLoading: state is AuthLoading,
                   ),
-                  const SizedBox(height: 24),
-                  _buildDivider(),
-                  const SizedBox(height: 24),
-                  _buildGoogleButton(),
-                  if (!kIsWeb && Platform.isIOS) ...[
-                    const SizedBox(height: 12),
-                    _buildAppleButton(),
-                  ],
-                  const SizedBox(height: 32),
-                  _buildSignUpLink(context),
+                ),
+                const SizedBox(height: 24),
+                _buildDivider(),
+                const SizedBox(height: 24),
+                _buildGoogleButton(),
+                if (!kIsWeb && Platform.isIOS) ...[
+                  const SizedBox(height: 12),
+                  _buildAppleButton(),
                 ],
-              ),
+                // ── Inline error banner ──────────────────────────────────
+                BlocBuilder<AuthBloc, AuthState>(
+                  builder: (context, state) {
+                    final message = state is AuthError ? state.message : null;
+                    return AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 250),
+                      transitionBuilder: (child, animation) => SizeTransition(
+                        sizeFactor: animation,
+                        axisAlignment: -1,
+                        child: FadeTransition(opacity: animation, child: child),
+                      ),
+                      child: message != null
+                          ? _ErrorBanner(
+                              key: ValueKey(message),
+                              message: message,
+                              onDismiss: () => context
+                                  .read<AuthBloc>()
+                                  .add(const AuthDismissError()),
+                            )
+                          : const SizedBox.shrink(),
+                    );
+                  },
+                ),
+                // ────────────────────────────────────────────────────────
+                const SizedBox(height: 32),
+                _buildSignUpLink(context),
+              ],
             ),
           ),
         ),
@@ -235,6 +250,51 @@ class _LoginScreenState extends State<LoginScreen> {
             child: const Text('Send'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ── Inline error banner widget ───────────────────────────────────────────────
+
+class _ErrorBanner extends StatelessWidget {
+  const _ErrorBanner({super.key, required this.message, required this.onDismiss});
+
+  final String message;
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: AppColors.error.withOpacity(0.08),
+          border: Border.all(color: AppColors.error.withOpacity(0.4)),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                message,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.error,
+                      fontWeight: FontWeight.w500,
+                    ),
+              ),
+            ),
+            GestureDetector(
+              onTap: onDismiss,
+              child: const Icon(Icons.close_rounded, color: AppColors.error, size: 18),
+            ),
+          ],
+        ),
       ),
     );
   }
