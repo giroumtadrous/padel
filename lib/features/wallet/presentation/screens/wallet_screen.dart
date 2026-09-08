@@ -53,15 +53,16 @@ class _WalletScreenState extends State<WalletScreen> {
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.fromLTRB(24, 32, 24, 32),
-                  decoration: const BoxDecoration(
-                    color: AppColors.navy,
-                  ),
+                  decoration: const BoxDecoration(color: AppColors.navy),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
                         'Available Balance',
-                        style: TextStyle(color: AppColors.textBlueGrey, fontSize: 13),
+                        style: TextStyle(
+                          color: AppColors.textBlueGrey,
+                          fontSize: 13,
+                        ),
                       ),
                       const SizedBox(height: 8),
                       Text(
@@ -70,35 +71,6 @@ class _WalletScreenState extends State<WalletScreen> {
                           color: AppColors.textOnDark,
                           fontSize: 32,
                           fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      // Loyalty strip
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: AppColors.navyLight,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.card_giftcard_rounded, color: AppColors.gold, size: 18),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                user.loyaltyDiscountEligible
-                                    ? '50% loyalty discount ready to use!'
-                                    : '${user.loyaltyBookingCount % AppConstants.loyaltyBookingsRequired}/${AppConstants.loyaltyBookingsRequired} bookings to loyalty reward',
-                                style: TextStyle(
-                                  color: user.loyaltyDiscountEligible
-                                      ? AppColors.gold
-                                      : AppColors.textBlueGrey,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ],
                         ),
                       ),
                     ],
@@ -110,7 +82,10 @@ class _WalletScreenState extends State<WalletScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Top Up Wallet', style: Theme.of(context).textTheme.headlineMedium),
+                      Text(
+                        'Top Up Wallet',
+                        style: Theme.of(context).textTheme.headlineMedium,
+                      ),
                       const SizedBox(height: 6),
                       Text(
                         'Add credits to pay for your bookings instantly',
@@ -124,7 +99,9 @@ class _WalletScreenState extends State<WalletScreen> {
                         child: TextFormField(
                           controller: _amountCtrl,
                           keyboardType: TextInputType.number,
-                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                          ],
                           decoration: const InputDecoration(
                             labelText: 'Amount (EGP)',
                             hintText: 'e.g. 200',
@@ -132,7 +109,8 @@ class _WalletScreenState extends State<WalletScreen> {
                           ),
                           validator: (v) {
                             final amount = double.tryParse(v ?? '');
-                            if (amount == null || amount <= 0) return 'Enter a valid amount';
+                            if (amount == null || amount <= 0)
+                              return 'Enter a valid amount';
                             return null;
                           },
                         ),
@@ -158,22 +136,42 @@ class _WalletScreenState extends State<WalletScreen> {
                             _TopUpMethodOption(
                               icon: Icons.phone_android_rounded,
                               label: 'Vodafone Cash',
-                              isSelected: _selectedMethod == AppConstants.paymentVodafone,
-                              onTap: () => setState(() => _selectedMethod = AppConstants.paymentVodafone),
+                              isSelected:
+                                  _selectedMethod ==
+                                  AppConstants.paymentVodafone,
+                              onTap: () => setState(
+                                () => _selectedMethod =
+                                    AppConstants.paymentVodafone,
+                              ),
                             ),
                             _TopUpMethodOption(
                               icon: Icons.send_rounded,
                               label: 'InstaPay',
-                              isSelected: _selectedMethod == AppConstants.paymentInstaPay,
-                              onTap: () => setState(() => _selectedMethod = AppConstants.paymentInstaPay),
+                              isSelected:
+                                  _selectedMethod ==
+                                  AppConstants.paymentInstaPay,
+                              onTap: () => setState(
+                                () => _selectedMethod =
+                                    AppConstants.paymentInstaPay,
+                              ),
                             ),
                             _TopUpMethodOption(
                               icon: Icons.credit_card_rounded,
                               label: 'Card (Visa / MC)',
-                              isSelected: _selectedMethod == AppConstants.paymentCard,
+                              isSelected:
+                                  _selectedMethod == AppConstants.paymentCard,
                               disabled: true,
-                              suffix: const Text('Coming soon', style: TextStyle(color: AppColors.textHint, fontSize: 11)),
-                              onTap: () => setState(() => _selectedMethod = AppConstants.paymentCard),
+                              suffix: const Text(
+                                'Coming soon',
+                                style: TextStyle(
+                                  color: AppColors.textHint,
+                                  fontSize: 11,
+                                ),
+                              ),
+                              onTap: () => setState(
+                                () =>
+                                    _selectedMethod = AppConstants.paymentCard,
+                              ),
                             ),
                           ],
                         ),
@@ -184,19 +182,25 @@ class _WalletScreenState extends State<WalletScreen> {
                         onPressed: () {
                           if (!_amountFormKey.currentState!.validate()) return;
                           final amount = double.parse(_amountCtrl.text);
-                          if (_selectedMethod == AppConstants.paymentCard) return;
+                          if (_selectedMethod == AppConstants.paymentCard)
+                            return;
 
-                          Navigator.of(context).push(MaterialPageRoute(
-                            builder: (_) => TopUpManualScreen(
-                              amount: amount,
-                              paymentMethod: _selectedMethod,
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => TopUpManualScreen(
+                                amount: amount,
+                                paymentMethod: _selectedMethod,
+                              ),
                             ),
-                          ));
+                          );
                         },
                       ),
 
                       const SizedBox(height: 32),
-                      Text('Transaction History', style: Theme.of(context).textTheme.headlineMedium),
+                      Text(
+                        'Transaction History',
+                        style: Theme.of(context).textTheme.headlineMedium,
+                      ),
                       const SizedBox(height: 16),
                       _TransactionPlaceholder(),
                     ],
@@ -223,7 +227,11 @@ class _TransactionPlaceholder extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Icon(Icons.receipt_long_outlined, size: 40, color: AppColors.textHint),
+          Icon(
+            Icons.receipt_long_outlined,
+            size: 40,
+            color: AppColors.textHint,
+          ),
           const SizedBox(height: 12),
           Text(
             'No transactions yet',
@@ -266,13 +274,15 @@ class _TopUpMethodOption extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         child: Row(
           children: [
-            Icon(icon,
-                size: 18,
-                color: disabled
-                    ? AppColors.textHint
-                    : isSelected
-                        ? AppColors.primary
-                        : AppColors.textSecondary),
+            Icon(
+              icon,
+              size: 18,
+              color: disabled
+                  ? AppColors.textHint
+                  : isSelected
+                  ? AppColors.primary
+                  : AppColors.textSecondary,
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Text(

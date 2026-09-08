@@ -93,10 +93,6 @@ class _ProfileContentState extends State<_ProfileContent> {
                     const SizedBox(height: 16),
                   ],
 
-                  // Loyalty card
-                  _buildLoyaltyCard(context, user),
-                  const SizedBox(height: 16),
-
                   _buildAppInfoSection(context),
                   const SizedBox(height: 16),
 

@@ -18,7 +18,7 @@ class RegisterScreen extends StatefulWidget {
 class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
-  final _emailCtrl = TextEditingController();
+  final _phoneCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   double _skillLevel = _skillLevels['Intermediate']!;
   String _preferredSide = AppConstants.sideForerhand;
@@ -29,25 +29,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
     'Advanced': 5.0,
     'Expert': 6.5,
   };
-  bool _obscure = true;
+  bool _obscurePassword = true;
 
   @override
   void dispose() {
     _nameCtrl.dispose();
-    _emailCtrl.dispose();
+    _phoneCtrl.dispose();
     _passwordCtrl.dispose();
     super.dispose();
   }
 
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
-    context.read<AuthBloc>().add(AuthRegister(
-          email: _emailCtrl.text.trim(),
-          password: _passwordCtrl.text,
-          displayName: _nameCtrl.text.trim(),
-          skillLevel: _skillLevel,
-          preferredSide: _preferredSide,
-        ));
+    context.read<AuthBloc>().add(
+      AuthRegisterWithPhonePassword(
+        phoneNumber: _phoneCtrl.text.trim(),
+        password: _passwordCtrl.text,
+        displayName: _nameCtrl.text.trim(),
+        skillLevel: _skillLevel,
+        preferredSide: _preferredSide,
+      ),
+    );
   }
 
   @override
@@ -56,7 +58,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
       listener: (context, state) {
         if (state is AuthError) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(state.message), backgroundColor: AppColors.error),
+            SnackBar(
+              content: Text(state.message),
+              backgroundColor: AppColors.error,
+            ),
           );
         }
       },
@@ -72,10 +77,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Your profile', style: Theme.of(context).textTheme.headlineLarge),
+                Text(
+                  'Your profile',
+                  style: Theme.of(context).textTheme.headlineLarge,
+                ),
                 const SizedBox(height: 4),
-                Text('Tell us about yourself to find the best matches',
-                    style: Theme.of(context).textTheme.bodyMedium),
+                Text(
+                  'Tell us about yourself to find the best matches',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
                 const SizedBox(height: 28),
                 TextFormField(
                   controller: _nameCtrl,
@@ -84,35 +94,47 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     labelText: 'Full Name',
                     prefixIcon: Icon(Icons.person_outline_rounded, size: 20),
                   ),
-                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Name is required' : null,
+                  validator: (v) => (v == null || v.trim().isEmpty)
+                      ? 'Name is required'
+                      : null,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
-                  controller: _emailCtrl,
-                  keyboardType: TextInputType.emailAddress,
+                  controller: _phoneCtrl,
+                  keyboardType: TextInputType.phone,
                   textInputAction: TextInputAction.next,
                   decoration: const InputDecoration(
-                    labelText: 'Email',
-                    prefixIcon: Icon(Icons.email_outlined, size: 20),
+                    labelText: 'Phone number',
+                    hintText: '+201234567890',
+                    prefixIcon: Icon(Icons.phone_outlined, size: 20),
                   ),
                   validator: (v) {
-                    if (v == null || v.isEmpty) return 'Email is required';
-                    if (!v.contains('@')) return 'Enter a valid email';
+                    if (v == null || v.trim().isEmpty)
+                      return 'Phone number is required';
+                    if (!v.trim().startsWith('+')) {
+                      return 'Use international format, e.g. +201234567890';
+                    }
                     return null;
                   },
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _passwordCtrl,
-                  obscureText: _obscure,
+                  obscureText: _obscurePassword,
                   textInputAction: TextInputAction.done,
                   decoration: InputDecoration(
-                    labelText: 'Password',
-                    prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20),
+                    labelText: 'Create password',
+                    prefixIcon: const Icon(
+                      Icons.lock_outline_rounded,
+                      size: 20,
+                    ),
                     suffixIcon: IconButton(
-                      onPressed: () => setState(() => _obscure = !_obscure),
+                      onPressed: () =>
+                          setState(() => _obscurePassword = !_obscurePassword),
                       icon: Icon(
-                        _obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                        _obscurePassword
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
                         size: 20,
                         color: AppColors.textSecondary,
                       ),
@@ -124,8 +146,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     return null;
                   },
                 ),
+                const SizedBox(height: 8),
+                const Text(
+                  'After creating your account, we will verify your phone number by SMS.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
                 const SizedBox(height: 28),
-                Text('Skill Level', style: Theme.of(context).textTheme.titleMedium),
+                Text(
+                  'Skill Level',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
                 const SizedBox(height: 10),
                 Wrap(
                   spacing: 12,
@@ -139,20 +172,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   }).toList(),
                 ),
                 const SizedBox(height: 20),
-                Text('Preferred Side', style: Theme.of(context).textTheme.titleMedium),
+                Text(
+                  'Preferred Side',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
                 const SizedBox(height: 10),
                 Row(
                   children: [
                     _SideChip(
                       label: 'Right Side',
                       isSelected: _preferredSide == AppConstants.sideForerhand,
-                      onTap: () => setState(() => _preferredSide = AppConstants.sideForerhand),
+                      onTap: () => setState(
+                        () => _preferredSide = AppConstants.sideForerhand,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     _SideChip(
                       label: 'Left Side',
                       isSelected: _preferredSide == AppConstants.sideBackhand,
-                      onTap: () => setState(() => _preferredSide = AppConstants.sideBackhand),
+                      onTap: () => setState(
+                        () => _preferredSide = AppConstants.sideBackhand,
+                      ),
                     ),
                   ],
                 ),
@@ -171,7 +211,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ),
     );
   }
-
 }
 
 class _SideChip extends StatelessWidget {
@@ -179,7 +218,11 @@ class _SideChip extends StatelessWidget {
   final bool isSelected;
   final VoidCallback onTap;
 
-  const _SideChip({required this.label, required this.isSelected, required this.onTap});
+  const _SideChip({
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -189,7 +232,9 @@ class _SideChip extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary.withValues(alpha: 0.15) : AppColors.card,
+          color: isSelected
+              ? AppColors.primary.withValues(alpha: 0.15)
+              : AppColors.card,
           border: Border.all(
             color: isSelected ? AppColors.primary : AppColors.divider,
             width: isSelected ? 1.5 : 1,

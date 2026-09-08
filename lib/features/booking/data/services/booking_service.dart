@@ -470,6 +470,17 @@ class BookingService {
       if (!snap.exists) throw Exception('Booking not found');
 
       final booking = BookingModel.fromJson(snap.data()!);
+      final now = DateTime.now();
+      final hoursUntilBooking = booking.startTime.difference(now).inHours;
+      
+      // Check if cancellation is 6 or more hours before booking time
+      final isEligibleForRefund = hoursUntilBooking >= 6;
+      double refundAmount = 0.0;
+      
+      if (isEligibleForRefund) {
+        // Refund = total price - deposit (deposit is non-refundable)
+        refundAmount = booking.totalPrice - booking.depositAmount;
+      }
 
       final slotRefs = booking.slotIds
           .map((slotId) => _db
@@ -493,6 +504,19 @@ class BookingService {
           'status': AppConstants.statusAvailable,
           'bookingId': null,
         });
+      }
+      
+      // Add refund to user's wallet if eligible
+      if (refundAmount > 0) {
+        final userRef = _db.collection(AppConstants.usersCollection).doc(booking.userId);
+        final userSnap = await tx.get(userRef);
+        
+        if (userSnap.exists) {
+          final currentBalance = (userSnap.data()?['walletBalance'] as num?)?.toDouble() ?? 0.0;
+          tx.update(userRef, {
+            'walletBalance': currentBalance + refundAmount,
+          });
+        }
       }
     });
   }

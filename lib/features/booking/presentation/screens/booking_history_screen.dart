@@ -64,17 +64,68 @@ class _BookingsSectionState extends State<BookingsSection> {
           ],
         ),
         const SizedBox(height: 12),
-        BlocBuilder<BookingBloc, BookingState>(
+        BlocConsumer<BookingBloc, BookingState>(
+          listenWhen: (previous, current) =>
+              current is CancellationSuccess ||
+              current is BookingError && current is! BookingHistoryLoaded,
+          listener: (context, state) {
+            // Handle cancellation feedback
+            if (state is CancellationSuccess) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Booking cancelled',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      if (state.wasRefunded)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                            'EGP ${state.refundAmount.toStringAsFixed(2)} refunded to wallet',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        )
+                      else
+                        const Padding(
+                          padding: EdgeInsets.only(top: 4),
+                          child: Text(
+                            'Cancelled within 6 hours - No refund applicable',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                        ),
+                    ],
+                  ),
+                  backgroundColor: state.wasRefunded
+                      ? AppColors.success
+                      : AppColors.warning,
+                  duration: const Duration(seconds: 4),
+                ),
+              );
+            }
+          },
+          buildWhen: (previous, current) => current is! CancellationSuccess,
           builder: (context, state) {
             if (state is BookingHistoryLoading) {
               return const ShimmerList(itemCount: 2);
             }
             if (state is BookingError) {
-              return AppErrorView(message: state.message, onRetry: _loadHistory);
+              return AppErrorView(
+                message: state.message,
+                onRetry: _loadHistory,
+              );
             }
             if (state is BookingHistoryLoaded) {
               final authState = context.read<AuthBloc>().state;
-              final userId = authState is AuthAuthenticated ? authState.user.uid : '';
+              final userId = authState is AuthAuthenticated
+                  ? authState.user.uid
+                  : '';
 
               return _selectedTab == 0
                   ? _BookingList(
@@ -88,7 +139,7 @@ class _BookingsSectionState extends State<BookingsSection> {
                       bookings: state.past,
                       emptyTitle: 'No past bookings',
                       emptySubtitle: 'Your completed games will appear here',
-                      showRate: true,
+                      showRate: false,
                       userId: userId,
                     );
             }
@@ -105,7 +156,11 @@ class _BookingsToggle extends StatelessWidget {
   final bool isSelected;
   final VoidCallback onTap;
 
-  const _BookingsToggle({required this.label, required this.isSelected, required this.onTap});
+  const _BookingsToggle({
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -116,7 +171,9 @@ class _BookingsToggle extends StatelessWidget {
         decoration: BoxDecoration(
           color: isSelected ? AppColors.primary : AppColors.card,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: isSelected ? AppColors.primary : AppColors.divider),
+          border: Border.all(
+            color: isSelected ? AppColors.primary : AppColors.divider,
+          ),
         ),
         child: Text(
           label,
@@ -211,8 +268,15 @@ class _BookingCardState extends State<_BookingCard> {
   Future<void> _checkReviewStatus() async {
     try {
       final service = BookingService();
-      final has = await service.hasReviewForBooking(widget.booking.id, widget.userId);
-      if (mounted) setState(() { _hasReview = has; _checkingReview = false; });
+      final has = await service.hasReviewForBooking(
+        widget.booking.id,
+        widget.userId,
+      );
+      if (mounted)
+        setState(() {
+          _hasReview = has;
+          _checkingReview = false;
+        });
     } catch (_) {
       if (mounted) setState(() => _checkingReview = false);
     }
@@ -235,124 +299,162 @@ class _BookingCardState extends State<_BookingCard> {
         child: InkWell(
           onTap: () => _showBookingDetails(context, booking),
           child: Column(
-        children: [
-          // Colored status accent bar
-          Container(
-            height: 3,
-            decoration: BoxDecoration(
-              color: statusColor,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+            children: [
+              // Colored status accent bar
+              Container(
+                height: 3,
+                decoration: BoxDecoration(
+                  color: statusColor,
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(12),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: Text(
-                        booking.venueName,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            booking.venueName,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
                         ),
-                      ),
+                        _StatusBadge(status: booking.status),
+                      ],
                     ),
-                    _StatusBadge(status: booking.status),
-                  ],
-                ),
-                const SizedBox(height: 2),
-                Text(booking.courtName, style: Theme.of(context).textTheme.bodyMedium),
-                if (booking.paymentStatus == AppConstants.paymentPending ||
-                    booking.paymentStatus == AppConstants.paymentRejected) ...[
-                  const SizedBox(height: 6),
-                  _PaymentStatusBadge(paymentStatus: booking.paymentStatus),
-                ],
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    _InfoChip(Icons.calendar_today_rounded,
-                        _BookingCard._dateFmt.format(booking.startTime)),
-                    const SizedBox(width: 8),
-                    _InfoChip(
-                      Icons.access_time_rounded,
-                      '${_BookingCard._timeFmt.format(booking.startTime)} — ${_BookingCard._timeFmt.format(booking.endTime)}',
+                    const SizedBox(height: 2),
+                    Text(
+                      booking.courtName,
+                      style: Theme.of(context).textTheme.bodyMedium,
                     ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    _InfoChip(Icons.payments_outlined,
-                        'EGP ${booking.totalPrice.toInt()} total'),
-                    if (booking.status == BookingStatus.upcoming &&
-                        booking.paymentStatus != AppConstants.paymentRejected &&
-                        booking.cashDueAmount > 0) ...[
-                      const SizedBox(width: 8),
-                      _InfoChip(Icons.money_rounded,
-                          'EGP ${booking.cashDueAmount.toInt()} cash due',
-                          color: AppColors.warning),
+                    if (booking.paymentStatus == AppConstants.paymentPending ||
+                        booking.paymentStatus ==
+                            AppConstants.paymentRejected) ...[
+                      const SizedBox(height: 6),
+                      _PaymentStatusBadge(paymentStatus: booking.paymentStatus),
                     ],
-                    if (booking.isOpenMatch) ...[
-                      const SizedBox(width: 8),
-                      _InfoChip(Icons.group_rounded, 'Open Match',
-                          color: AppColors.secondary),
-                    ],
-                    const Spacer(),
-                    // Cancel button
-                    if (widget.showCancel &&
-                        booking.status == BookingStatus.upcoming)
-                      TextButton(
-                        onPressed: () => _cancelBooking(context),
-                        style: TextButton.styleFrom(
-                            foregroundColor: AppColors.error,
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 4)),
-                        child: const Text('Cancel',
-                            style: TextStyle(fontSize: 12)),
-                      ),
-                    // Rate button
-                    if (widget.showRate && !_checkingReview && !_hasReview)
-                      TextButton.icon(
-                        onPressed: () {
-                          context.push(
-                            '/booking/${booking.id}/review',
-                            extra: {
-                              'venueId': booking.venueId,
-                              'venueName': booking.venueName,
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        _InfoChip(
+                          Icons.calendar_today_rounded,
+                          _BookingCard._dateFmt.format(booking.startTime),
+                        ),
+                        const SizedBox(width: 8),
+                        _InfoChip(
+                          Icons.access_time_rounded,
+                          '${_BookingCard._timeFmt.format(booking.startTime)} — ${_BookingCard._timeFmt.format(booking.endTime)}',
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        _InfoChip(
+                          Icons.payments_outlined,
+                          'EGP ${booking.totalPrice.toInt()} total',
+                        ),
+                        if (booking.status == BookingStatus.upcoming &&
+                            booking.paymentStatus !=
+                                AppConstants.paymentRejected &&
+                            booking.cashDueAmount > 0) ...[
+                          const SizedBox(width: 8),
+                          _InfoChip(
+                            Icons.money_rounded,
+                            'EGP ${booking.cashDueAmount.toInt()} cash due',
+                            color: AppColors.warning,
+                          ),
+                        ],
+                        if (booking.isOpenMatch) ...[
+                          const SizedBox(width: 8),
+                          _InfoChip(
+                            Icons.group_rounded,
+                            'Open Match',
+                            color: AppColors.secondary,
+                          ),
+                        ],
+                        const Spacer(),
+                        // Cancel button
+                        if (widget.showCancel &&
+                            booking.status == BookingStatus.upcoming)
+                          TextButton(
+                            onPressed: () => _cancelBooking(context),
+                            style: TextButton.styleFrom(
+                              foregroundColor: AppColors.error,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                            ),
+                            child: const Text(
+                              'Cancel',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                          ),
+                        // Rate button
+                        if (widget.showRate && !_checkingReview && !_hasReview)
+                          TextButton.icon(
+                            onPressed: () {
+                              context.push(
+                                '/booking/${booking.id}/review',
+                                extra: {
+                                  'venueId': booking.venueId,
+                                  'venueName': booking.venueName,
+                                },
+                              );
                             },
-                          );
-                        },
-                        icon: const Icon(Icons.star_outline_rounded, size: 14),
-                        label: const Text('Rate', style: TextStyle(fontSize: 12)),
-                        style: TextButton.styleFrom(
-                          foregroundColor: AppColors.gold,
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        ),
-                      ),
-                    if (widget.showRate && !_checkingReview && _hasReview)
-                      const Padding(
-                        padding: EdgeInsets.only(right: 4),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.star_rounded, size: 13, color: AppColors.gold),
-                            SizedBox(width: 3),
-                            Text('Rated',
-                                style: TextStyle(
-                                    fontSize: 11, color: AppColors.textSecondary)),
-                          ],
-                        ),
-                      ),
+                            icon: const Icon(
+                              Icons.star_outline_rounded,
+                              size: 14,
+                            ),
+                            label: const Text(
+                              'Rate',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                            style: TextButton.styleFrom(
+                              foregroundColor: AppColors.gold,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                            ),
+                          ),
+                        if (widget.showRate && !_checkingReview && _hasReview)
+                          const Padding(
+                            padding: EdgeInsets.only(right: 4),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.star_rounded,
+                                  size: 13,
+                                  color: AppColors.gold,
+                                ),
+                                SizedBox(width: 3),
+                                Text(
+                                  'Rated',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
                   ],
                 ),
-              ],
-            ),
-          ),
-        ],
+              ),
+            ],
           ),
         ),
       ),
@@ -378,16 +480,25 @@ class _BookingCardState extends State<_BookingCard> {
         content: const Text('Are you sure? This action cannot be undone.'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context), child: const Text('Keep')),
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Keep'),
+          ),
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              context
-                  .read<BookingBloc>()
-                  .add(CancelBooking(widget.booking.id));
+              context.read<BookingBloc>().add(
+                CancelBooking(
+                  bookingId: widget.booking.id,
+                  totalPrice: widget.booking.totalPrice,
+                  depositAmount: widget.booking.depositAmount,
+                  bookingTime: widget.booking.startTime,
+                ),
+              );
             },
-            child: const Text('Cancel Booking',
-                style: TextStyle(color: AppColors.error)),
+            child: const Text(
+              'Cancel Booking',
+              style: TextStyle(color: AppColors.error),
+            ),
           ),
         ],
       ),
@@ -415,7 +526,9 @@ class _BookingDetailsSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ref = booking.id.length >= 8 ? booking.id.substring(0, 8).toUpperCase() : booking.id.toUpperCase();
+    final ref = booking.id.length >= 8
+        ? booking.id.substring(0, 8).toUpperCase()
+        : booking.id.toUpperCase();
 
     return SafeArea(
       child: Padding(
@@ -446,26 +559,50 @@ class _BookingDetailsSheet extends StatelessWidget {
                   Expanded(
                     child: Text(
                       booking.venueName,
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
                   _StatusBadge(status: booking.status),
                 ],
               ),
               const SizedBox(height: 2),
-              Text(booking.courtName, style: Theme.of(context).textTheme.bodyMedium),
+              Text(
+                booking.courtName,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
               const SizedBox(height: 16),
-              _DetailRow(icon: Icons.calendar_today_rounded, label: 'Date', value: _dateFmt.format(booking.startTime)),
+              _DetailRow(
+                icon: Icons.calendar_today_rounded,
+                label: 'Date',
+                value: _dateFmt.format(booking.startTime),
+              ),
               _DetailRow(
                 icon: Icons.access_time_rounded,
                 label: 'Time',
-                value: '${_timeFmt.format(booking.startTime)} — ${_timeFmt.format(booking.endTime)}',
+                value:
+                    '${_timeFmt.format(booking.startTime)} — ${_timeFmt.format(booking.endTime)}',
               ),
-              _DetailRow(icon: Icons.timer_outlined, label: 'Duration', value: '${booking.durationMinutes} min'),
-              _DetailRow(icon: Icons.tag_rounded, label: 'Reference', value: ref),
+              _DetailRow(
+                icon: Icons.timer_outlined,
+                label: 'Duration',
+                value: '${booking.durationMinutes} min',
+              ),
+              _DetailRow(
+                icon: Icons.tag_rounded,
+                label: 'Reference',
+                value: ref,
+              ),
               if (booking.isOpenMatch)
-                const _DetailRow(icon: Icons.group_rounded, label: 'Open Match', value: 'Yes'),
-              if (booking.status == BookingStatus.cancelled && booking.cancelledAt != null)
+                const _DetailRow(
+                  icon: Icons.group_rounded,
+                  label: 'Open Match',
+                  value: 'Yes',
+                ),
+              if (booking.status == BookingStatus.cancelled &&
+                  booking.cancelledAt != null)
                 _DetailRow(
                   icon: Icons.cancel_outlined,
                   label: 'Cancelled on',
@@ -497,11 +634,16 @@ class _BookingDetailsSheet extends StatelessWidget {
                 const SizedBox(height: 10),
                 _PaymentStatusBadge(paymentStatus: booking.paymentStatus),
               ],
-              if (booking.paymentProofUrl != null && booking.paymentProofUrl!.isNotEmpty) ...[
+              if (booking.paymentProofUrl != null &&
+                  booking.paymentProofUrl!.isNotEmpty) ...[
                 const SizedBox(height: 14),
                 const Text(
                   'Payment screenshot',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 ClipRRect(
@@ -551,7 +693,11 @@ class _DetailRow extends StatelessWidget {
   final String label;
   final String value;
 
-  const _DetailRow({required this.icon, required this.label, required this.value});
+  const _DetailRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -565,7 +711,11 @@ class _DetailRow extends StatelessWidget {
           const Spacer(),
           Text(
             value,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
           ),
         ],
       ),
@@ -608,7 +758,10 @@ class _StatusBadge extends StatelessWidget {
       child: Text(
         label,
         style: TextStyle(
-            color: color, fontSize: 11, fontWeight: FontWeight.w700),
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
@@ -622,7 +775,9 @@ class _PaymentStatusBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final isPending = paymentStatus == AppConstants.paymentPending;
     final color = isPending ? AppColors.warning : AppColors.error;
-    final label = isPending ? 'Payment pending verification' : 'Payment rejected';
+    final label = isPending
+        ? 'Payment pending verification'
+        : 'Payment rejected';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
@@ -631,7 +786,11 @@ class _PaymentStatusBadge extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w700),
+        style: TextStyle(
+          color: color,
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }

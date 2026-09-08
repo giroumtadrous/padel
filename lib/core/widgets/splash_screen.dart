@@ -24,7 +24,7 @@ class SplashScreen extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.all(10),
                 child: Image.asset(
-                  'assets/Gemini_Generated_Image_u2ftxqu2ftxqu2ft.png',
+                  'assets/icon.png',
                   fit: BoxFit.contain,
                 ),
               ),

@@ -15,6 +15,14 @@ class AuthLoading extends AuthState {
   const AuthLoading();
 }
 
+class AuthPhoneCodeSent extends AuthState {
+  final String verificationId;
+  final String phoneNumber;
+  const AuthPhoneCodeSent({required this.verificationId, required this.phoneNumber});
+  @override
+  List<Object?> get props => [verificationId, phoneNumber];
+}
+
 class AuthAuthenticated extends AuthState {
   final UserModel user;
   const AuthAuthenticated(this.user);

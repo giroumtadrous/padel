@@ -10,15 +10,21 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final SkillRequestService _skillRequestService;
   StreamSubscription? _authSubscription;
 
-  AuthBloc({required AuthService authService, SkillRequestService? skillRequestService})
-      : _authService = authService,
-        _skillRequestService = skillRequestService ?? SkillRequestService(),
-        super(const AuthInitial()) {
+  AuthBloc({
+    required AuthService authService,
+    SkillRequestService? skillRequestService,
+  }) : _authService = authService,
+       _skillRequestService = skillRequestService ?? SkillRequestService(),
+       super(const AuthInitial()) {
     on<AuthStarted>(_onStarted);
     on<AuthLoginWithEmail>(_onLoginWithEmail);
+    on<AuthLoginWithPhonePassword>(_onLoginWithPhonePassword);
+    on<AuthPhoneCodeRequested>(_onPhoneCodeRequested);
+    on<AuthPhoneCodeConfirmed>(_onPhoneCodeConfirmed);
     on<AuthLoginWithGoogle>(_onLoginWithGoogle);
     on<AuthLoginWithApple>(_onLoginWithApple);
     on<AuthRegister>(_onRegister);
+    on<AuthRegisterWithPhonePassword>(_onRegisterWithPhonePassword);
     on<AuthLoggedOut>(_onLoggedOut);
     on<AuthProfileUpdated>(_onProfileUpdated);
     on<RequestSkillLevelChange>(_onRequestSkillLevelChange);
@@ -45,17 +51,82 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     );
   }
 
-  Future<void> _onLoginWithEmail(AuthLoginWithEmail event, Emitter<AuthState> emit) async {
+  Future<void> _onLoginWithEmail(
+    AuthLoginWithEmail event,
+    Emitter<AuthState> emit,
+  ) async {
     emit(const AuthLoading());
     try {
-      final user = await _authService.signInWithEmailAndPassword(event.email, event.password);
+      final user = await _authService.signInWithEmailAndPassword(
+        event.email,
+        event.password,
+      );
       emit(AuthAuthenticated(user));
     } catch (e) {
       emit(AuthError(_friendlyError(e.toString())));
     }
   }
 
-  Future<void> _onLoginWithGoogle(AuthLoginWithGoogle event, Emitter<AuthState> emit) async {
+  Future<void> _onLoginWithPhonePassword(
+    AuthLoginWithPhonePassword event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(const AuthLoading());
+    try {
+      final user = await _authService.signInWithPhoneAndPassword(
+        phoneNumber: event.phoneNumber,
+        password: event.password,
+      );
+      emit(AuthAuthenticated(user));
+    } catch (e) {
+      emit(AuthError(_friendlyError(e.toString())));
+    }
+  }
+
+  Future<void> _onPhoneCodeRequested(
+    AuthPhoneCodeRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(const AuthLoading());
+    try {
+      final verificationId = await _authService.sendPhoneAuthCode(
+        event.phoneNumber,
+      );
+      emit(
+        AuthPhoneCodeSent(
+          verificationId: verificationId,
+          phoneNumber: event.phoneNumber,
+        ),
+      );
+    } catch (e) {
+      emit(AuthError(_friendlyError(e.toString())));
+    }
+  }
+
+  Future<void> _onPhoneCodeConfirmed(
+    AuthPhoneCodeConfirmed event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(const AuthLoading());
+    try {
+      final user = await _authService.confirmPhoneAuthCode(
+        verificationId: event.verificationId,
+        smsCode: event.smsCode,
+        phoneNumber: event.phoneNumber,
+        displayName: event.displayName,
+        skillLevel: event.skillLevel,
+        preferredSide: event.preferredSide,
+      );
+      emit(AuthAuthenticated(user));
+    } catch (e) {
+      emit(AuthError(_friendlyError(e.toString())));
+    }
+  }
+
+  Future<void> _onLoginWithGoogle(
+    AuthLoginWithGoogle event,
+    Emitter<AuthState> emit,
+  ) async {
     emit(const AuthLoading());
     try {
       final user = await _authService.signInWithGoogle();
@@ -65,7 +136,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     }
   }
 
-  Future<void> _onLoginWithApple(AuthLoginWithApple event, Emitter<AuthState> emit) async {
+  Future<void> _onLoginWithApple(
+    AuthLoginWithApple event,
+    Emitter<AuthState> emit,
+  ) async {
     emit(const AuthLoading());
     try {
       final user = await _authService.signInWithApple();
@@ -73,7 +147,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     } catch (e) {
       // Silently absorb deliberate cancellations — no error snackbar needed.
       final msg = e.toString();
-      if (msg.contains('canceled') || msg.contains('cancelled') || msg.contains('AuthorizationErrorCode.canceled')) {
+      if (msg.contains('canceled') ||
+          msg.contains('cancelled') ||
+          msg.contains('AuthorizationErrorCode.canceled')) {
         emit(const AuthUnauthenticated());
         return;
       }
@@ -81,7 +157,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     }
   }
 
-  Future<void> _onRefreshCurrentUser(RefreshCurrentUser event, Emitter<AuthState> emit) async {
+  Future<void> _onRefreshCurrentUser(
+    RefreshCurrentUser event,
+    Emitter<AuthState> emit,
+  ) async {
     if (state is! AuthAuthenticated) return;
     try {
       final refreshed = await _authService.currentUser;
@@ -92,11 +171,15 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }
 
   Future<void> _onSkipPhoneVerification(
-      SkipPhoneVerification event, Emitter<AuthState> emit) async {
+    SkipPhoneVerification event,
+    Emitter<AuthState> emit,
+  ) async {
     final current = state;
     if (current is! AuthAuthenticated) return;
     try {
-      final updated = await _authService.skipPhoneVerification(current.user.uid);
+      final updated = await _authService.skipPhoneVerification(
+        current.user.uid,
+      );
       emit(AuthAuthenticated(updated));
     } catch (_) {
       // Keep the current state if this fails — the verify-phone screen just
@@ -120,7 +203,29 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     }
   }
 
-  Future<void> _onLoggedOut(AuthLoggedOut event, Emitter<AuthState> emit) async {
+  Future<void> _onRegisterWithPhonePassword(
+    AuthRegisterWithPhonePassword event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(const AuthLoading());
+    try {
+      final user = await _authService.signUpWithPhoneAndPassword(
+        phoneNumber: event.phoneNumber,
+        password: event.password,
+        displayName: event.displayName,
+        skillLevel: event.skillLevel,
+        preferredSide: event.preferredSide,
+      );
+      emit(AuthAuthenticated(user));
+    } catch (e) {
+      emit(AuthError(_friendlyError(e.toString())));
+    }
+  }
+
+  Future<void> _onLoggedOut(
+    AuthLoggedOut event,
+    Emitter<AuthState> emit,
+  ) async {
     try {
       await _authService.signOut();
     } catch (_) {
@@ -132,7 +237,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     emit(const AuthUnauthenticated());
   }
 
-  Future<void> _onProfileUpdated(AuthProfileUpdated event, Emitter<AuthState> emit) async {
+  Future<void> _onProfileUpdated(
+    AuthProfileUpdated event,
+    Emitter<AuthState> emit,
+  ) async {
     final current = state;
     if (current is! AuthAuthenticated) return;
 
@@ -153,7 +261,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }
 
   Future<void> _onRequestSkillLevelChange(
-      RequestSkillLevelChange event, Emitter<AuthState> emit) async {
+    RequestSkillLevelChange event,
+    Emitter<AuthState> emit,
+  ) async {
     final current = state;
     if (current is! AuthAuthenticated) return;
 
@@ -172,7 +282,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     }
   }
 
-  Future<void> _onPasswordReset(AuthPasswordResetRequested event, Emitter<AuthState> emit) async {
+  Future<void> _onPasswordReset(
+    AuthPasswordResetRequested event,
+    Emitter<AuthState> emit,
+  ) async {
     try {
       await _authService.sendPasswordResetEmail(event.email);
       emit(const AuthPasswordResetSent());
@@ -181,24 +294,36 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     }
   }
 
-  Future<void> _onToggleFavorite(ToggleFavorite event, Emitter<AuthState> emit) async {
+  Future<void> _onToggleFavorite(
+    ToggleFavorite event,
+    Emitter<AuthState> emit,
+  ) async {
     final current = state;
     if (current is! AuthAuthenticated) return;
 
     try {
-      final updated = await _authService.toggleFavorite(current.user.uid, event.venueId);
+      final updated = await _authService.toggleFavorite(
+        current.user.uid,
+        event.venueId,
+      );
       emit(AuthAuthenticated(updated));
     } catch (e) {
       // Silently fail — don't change state on favorite error
     }
   }
 
-  Future<void> _onTopUpWallet(TopUpWallet event, Emitter<AuthState> emit) async {
+  Future<void> _onTopUpWallet(
+    TopUpWallet event,
+    Emitter<AuthState> emit,
+  ) async {
     final current = state;
     if (current is! AuthAuthenticated) return;
 
     try {
-      final updated = await _authService.topUpWallet(current.user.uid, event.amount);
+      final updated = await _authService.topUpWallet(
+        current.user.uid,
+        event.amount,
+      );
       emit(AuthAuthenticated(updated));
     } catch (e) {
       emit(AuthError(e.toString()));
@@ -206,7 +331,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     }
   }
 
-  Future<void> _onSaveFcmToken(SaveFcmToken event, Emitter<AuthState> emit) async {
+  Future<void> _onSaveFcmToken(
+    SaveFcmToken event,
+    Emitter<AuthState> emit,
+  ) async {
     final current = state;
     if (current is! AuthAuthenticated) return;
 
@@ -222,24 +350,32 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       return 'Incorrect email or password.';
     }
     if (raw.contains('invalid-credential')) {
-      if (raw.contains('apple')) return 'Apple sign-in failed. Please check your Firebase Apple configuration (invalid-credential).';
+      if (raw.contains('apple'))
+        return 'Apple sign-in failed. Please check your Firebase Apple configuration (invalid-credential).';
       return 'Invalid credential. Please try again.';
     }
-    if (raw.contains('email-already-in-use')) return 'An account with this email already exists.';
+    if (raw.contains('email-already-in-use'))
+      return 'An account with this email already exists.';
     if (raw.contains('account-exists-with-different-credential')) {
       final email = _authService.pendingLinkEmail;
       return 'An account already exists for ${email ?? 'this email'} using a different sign-in '
           'method. Sign in with that method once — we\'ll link this one automatically for next time.';
     }
-    if (raw.contains('weak-password')) return 'Password must be at least 6 characters.';
-    if (raw.contains('network-request-failed')) return 'No internet connection.';
+    if (raw.contains('weak-password'))
+      return 'Password must be at least 6 characters.';
+    if (raw.contains('network-request-failed'))
+      return 'No internet connection.';
     if (raw.contains('cancelled')) return 'Sign-in was cancelled.';
-    if (raw.contains('only available on iOS')) return 'Apple Sign-In is only available on iOS.';
-    if (raw.contains('permission-denied') || raw.contains('PERMISSION_DENIED')) {
+    if (raw.contains('only available on iOS'))
+      return 'Apple Sign-In is only available on iOS.';
+    if (raw.contains('permission-denied') ||
+        raw.contains('PERMISSION_DENIED')) {
       return 'Database permission error. Please check your Firestore security rules.';
     }
-    if (raw.contains('unavailable')) return 'Service temporarily unavailable. Please try again.';
-    if (raw.contains('too-many-requests')) return 'Too many attempts. Please wait a moment.';
+    if (raw.contains('unavailable'))
+      return 'Service temporarily unavailable. Please try again.';
+    if (raw.contains('too-many-requests'))
+      return 'Too many attempts. Please wait a moment.';
     assert(() {
       // ignore: avoid_print
       print('[AuthBloc] Unhandled error: $raw');
@@ -248,7 +384,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     return 'Something went wrong. Please try again.';
   }
 
-  Future<void> _onDismissError(AuthDismissError event, Emitter<AuthState> emit) async {
+  Future<void> _onDismissError(
+    AuthDismissError event,
+    Emitter<AuthState> emit,
+  ) async {
     if (state is AuthError) {
       emit(const AuthUnauthenticated());
     }

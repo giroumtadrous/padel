@@ -113,6 +113,20 @@ class BookingBloc extends Bloc<BookingEvent, BookingState> {
   Future<void> _onCancelBooking(CancelBooking event, Emitter<BookingState> emit) async {
     try {
       await _bookingService.cancelBooking(event.bookingId);
+      
+      // Calculate refund based on cancellation time
+      final now = DateTime.now();
+      final hoursUntilBooking = event.bookingTime.difference(now).inHours;
+      final isEligibleForRefund = hoursUntilBooking >= 6;
+      final refundAmount = isEligibleForRefund 
+          ? event.totalPrice - event.depositAmount 
+          : 0.0;
+      
+      // Emit success state for UI feedback
+      emit(CancellationSuccess(
+        refundAmount: refundAmount,
+        wasRefunded: isEligibleForRefund,
+      ));
     } catch (e) {
       emit(BookingError(e.toString()));
     }

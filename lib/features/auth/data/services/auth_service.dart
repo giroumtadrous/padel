@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -23,6 +24,7 @@ class AuthService {
   AuthCredential? _pendingLinkCredential;
   String? _pendingLinkEmail;
   String? _pendingAppleAuthorizationCode;
+  ConfirmationResult? _pendingPhoneConfirmation;
 
   String? get pendingLinkEmail => _pendingLinkEmail;
 
@@ -93,6 +95,52 @@ class AuthService {
     return UserModel.fromJson(doc.data()!);
   }
 
+  String _phoneLoginEmail(String phoneNumber) {
+    final normalized = phoneNumber.trim().replaceAll(RegExp(r'[^0-9+]'), '');
+    final digest = sha256.convert(utf8.encode(normalized)).toString();
+    return 'phone_$digest@phone.malaaby.local';
+  }
+
+  Future<UserModel> signInWithPhoneAndPassword({
+    required String phoneNumber,
+    required String password,
+  }) async {
+    final loginEmail = _phoneLoginEmail(phoneNumber);
+    return signInWithEmailAndPassword(loginEmail, password);
+  }
+
+  Future<UserModel> signUpWithPhoneAndPassword({
+    required String phoneNumber,
+    required String password,
+    required String displayName,
+    required double skillLevel,
+    required String preferredSide,
+  }) async {
+    final loginEmail = _phoneLoginEmail(phoneNumber);
+    final credential = await _auth.createUserWithEmailAndPassword(
+      email: loginEmail,
+      password: password,
+    );
+    await credential.user!.updateDisplayName(displayName);
+
+    final user = UserModel(
+      uid: credential.user!.uid,
+      email: '',
+      displayName: displayName,
+      phone: phoneNumber,
+      skillLevel: skillLevel,
+      preferredSide: preferredSide,
+      phoneVerified: false,
+      createdAt: DateTime.now(),
+    );
+
+    await _db
+        .collection(AppConstants.usersCollection)
+        .doc(user.uid)
+        .set(user.toJson());
+    return user;
+  }
+
   /// Links a previously-blocked Google/Apple credential to whichever account
   /// just signed in successfully. Firebase refuses to auto-merge accounts
   /// across providers for the same email (anti-takeover protection), so this
@@ -145,6 +193,94 @@ class AuthService {
       }
     }
 
+    return user;
+  }
+
+  Future<String> sendPhoneAuthCode(String phoneNumber) async {
+    if (kIsWeb) {
+      final confirmation = await _auth.signInWithPhoneNumber(phoneNumber);
+      _pendingPhoneConfirmation = confirmation;
+      return confirmation.verificationId;
+    }
+
+    final completer = Completer<String>();
+    await _auth.verifyPhoneNumber(
+      phoneNumber: phoneNumber,
+      verificationCompleted: (credential) async {
+        try {
+          await _auth.signInWithCredential(credential);
+        } catch (error) {
+          if (!completer.isCompleted) completer.completeError(error);
+        }
+      },
+      verificationFailed: (error) {
+        if (!completer.isCompleted) completer.completeError(error);
+      },
+      codeSent: (verificationId, _) {
+        if (!completer.isCompleted) completer.complete(verificationId);
+      },
+      codeAutoRetrievalTimeout: (verificationId) {},
+    );
+    return completer.future;
+  }
+
+  Future<UserModel> confirmPhoneAuthCode({
+    required String verificationId,
+    required String smsCode,
+    required String phoneNumber,
+    String? displayName,
+    double? skillLevel,
+    String? preferredSide,
+  }) async {
+    UserCredential credential;
+    if (kIsWeb) {
+      final confirmation = _pendingPhoneConfirmation;
+      if (confirmation == null ||
+          confirmation.verificationId != verificationId) {
+        throw Exception(
+          'The verification session expired. Please request a new code.',
+        );
+      }
+      credential = await confirmation.confirm(smsCode);
+      _pendingPhoneConfirmation = null;
+    } else {
+      final phoneCredential = PhoneAuthProvider.credential(
+        verificationId: verificationId,
+        smsCode: smsCode,
+      );
+      credential = await _auth.signInWithCredential(phoneCredential);
+    }
+
+    final firebaseUser = credential.user!;
+    final userRef = _db
+        .collection(AppConstants.usersCollection)
+        .doc(firebaseUser.uid);
+    final existing = await userRef.get();
+
+    if (existing.exists) {
+      await userRef.update({'phone': phoneNumber, 'phoneVerified': true});
+      return _fetchUserModel(firebaseUser.uid);
+    }
+
+    if (displayName == null || skillLevel == null || preferredSide == null) {
+      await _auth.signOut();
+      throw Exception(
+        'No account was found for this phone number. Please sign up first.',
+      );
+    }
+
+    await firebaseUser.updateDisplayName(displayName);
+    final user = UserModel(
+      uid: firebaseUser.uid,
+      email: firebaseUser.email ?? '',
+      displayName: displayName,
+      phone: phoneNumber,
+      phoneVerified: true,
+      skillLevel: skillLevel,
+      preferredSide: preferredSide,
+      createdAt: DateTime.now(),
+    );
+    await userRef.set(user.toJson());
     return user;
   }
 
@@ -472,34 +608,29 @@ class AuthService {
   /// Sends an SMS OTP to [phoneNumber]. Callback-based because
   /// `FirebaseAuth.verifyPhoneNumber` itself is callback-based (it may
   /// auto-resolve on Android via SMS retriever before `codeSent` even fires).
+  /// Sends an SMS OTP to [phoneNumber].
   Future<void> sendPhoneVerificationCode(
     String phoneNumber, {
-    required void Function(String verificationId) onCodeSent,
+    required void Function(String verificationId, int? resendToken) onCodeSent,
     required void Function(String error) onFailed,
     void Function(PhoneAuthCredential credential)? onAutoVerified,
+    int? forceResendingToken,
   }) async {
     await _auth.verifyPhoneNumber(
       phoneNumber: phoneNumber,
+      forceResendingToken: forceResendingToken,
       verificationCompleted: (credential) {
         onAutoVerified?.call(credential);
       },
       verificationFailed: (e) =>
           onFailed(e.message ?? 'Phone verification failed'),
-      codeSent: (verificationId, _) => onCodeSent(verificationId),
+      codeSent: (verificationId, resendToken) =>
+          onCodeSent(verificationId, resendToken),
       codeAutoRetrievalTimeout: (verificationId) {},
     );
   }
 
-  /// Links the OTP-verified phone number to the current account and marks
-  /// [UserModel.phoneVerified] on the Firestore user doc.
-  ///
-  /// If this phone number is already verified on a *different* account (e.g.
-  /// the user previously tested email/password sign-up with the same number,
-  /// then later signed in with Google), we don't just fail: the OTP itself is
-  /// proof the caller owns that phone number, so we sign them straight into
-  /// the existing account instead. That guarantees one verified phone number
-  /// always maps to exactly one account, regardless of how many sign-in
-  /// methods (email/Google/Apple) a person has tried.
+  /// Verifies manually entered OTP code.
   Future<UserModel> confirmPhoneVerificationCode({
     required String verificationId,
     required String smsCode,
@@ -511,33 +642,44 @@ class AuthService {
       smsCode: smsCode,
     );
 
+    return linkOrSignInWithPhoneCredential(
+      credential: credential,
+      uid: uid,
+      phoneNumber: phoneNumber,
+    );
+  }
+
+  /// Completes phone auth using a [PhoneAuthCredential] (used by both manual OTP
+  /// entry and automatic SMS verification).
+  Future<UserModel> linkOrSignInWithPhoneCredential({
+    required PhoneAuthCredential credential,
+    required String uid,
+    required String phoneNumber,
+  }) async {
     final user = _auth.currentUser;
     if (user == null) throw Exception('Not signed in');
 
     final alreadyLinked = user.providerData.any((p) => p.providerId == 'phone');
     String activeUid = uid;
-    if (!alreadyLinked) {
-      try {
+
+    try {
+      if (alreadyLinked) {
+        // Update phone number if already linked to phone auth
+        await user.updatePhoneNumber(credential);
+      } else {
+        // Link new phone provider to existing account
         await user.linkWithCredential(credential);
-      } on FirebaseAuthException catch (e) {
-        // Both codes mean the same thing here: this phone number is already
-        // verified on a different account. (Firebase's own linkWithCredential
-        // docs promise `credential-already-in-use`, but some SDK/plugin
-        // versions surface phone-linking conflicts as
-        // `account-exists-with-different-credential` instead — handle both
-        // the same way rather than depending on which one shows up.)
-        if (e.code == 'credential-already-in-use' ||
-            e.code == 'account-exists-with-different-credential') {
-          // signInWithCredential fully replaces the current session in one
-          // atomic step (no intermediate signed-out state), so this doesn't
-          // bounce the user back to the login screen.
-          final existingUserCredential = await _auth.signInWithCredential(
-            credential,
-          );
-          activeUid = existingUserCredential.user!.uid;
-        } else {
-          throw Exception(_friendlyPhoneLinkError(e));
-        }
+      }
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'credential-already-in-use' ||
+          e.code == 'account-exists-with-different-credential') {
+        // Sign into existing account tied to this phone number
+        final existingUserCredential = await _auth.signInWithCredential(
+          credential,
+        );
+        activeUid = existingUserCredential.user!.uid;
+      } else {
+        throw Exception(_friendlyPhoneLinkError(e));
       }
     }
 
@@ -549,8 +691,6 @@ class AuthService {
     return _fetchUserModel(activeUid);
   }
 
-  /// Marks phone verification as skipped so the router stops gating the app
-  /// behind it — remembered permanently until the user verifies from Profile.
   Future<UserModel> skipPhoneVerification(String uid) async {
     await _db.collection(AppConstants.usersCollection).doc(uid).update({
       'phoneVerificationSkipped': true,

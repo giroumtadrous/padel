@@ -30,7 +30,8 @@ class _VerifyPhoneScreenState extends State<VerifyPhoneScreen> {
   void initState() {
     super.initState();
     final authState = context.read<AuthBloc>().state;
-    if (authState is AuthAuthenticated && (authState.user.phone ?? '').isNotEmpty) {
+    if (authState is AuthAuthenticated &&
+        (authState.user.phone ?? '').isNotEmpty) {
       _phoneCtrl.text = authState.user.phone!;
     }
   }
@@ -54,6 +55,9 @@ class _VerifyPhoneScreenState extends State<VerifyPhoneScreen> {
     });
   }
 
+  int?
+  _resendToken; // Add this state variable to your State class if you want to store it for resending
+
   Future<void> _sendCode() async {
     final phone = _phoneCtrl.text.trim();
     if (phone.isEmpty) {
@@ -64,21 +68,23 @@ class _VerifyPhoneScreenState extends State<VerifyPhoneScreen> {
     setState(() => _sending = true);
     try {
       await context.read<AuthService>().sendPhoneVerificationCode(
-            phone,
-            onCodeSent: (verificationId) {
-              if (!mounted) return;
-              setState(() {
-                _verificationId = verificationId;
-                _sending = false;
-              });
-              _startCooldown();
-            },
-            onFailed: (error) {
-              if (!mounted) return;
-              setState(() => _sending = false);
-              _showSnack(error);
-            },
-          );
+        phone,
+        forceResendingToken: _resendToken,
+        onCodeSent: (verificationId, resendToken) {
+          if (!mounted) return;
+          setState(() {
+            _verificationId = verificationId;
+            _resendToken = resendToken;
+            _sending = false;
+          });
+          _startCooldown();
+        },
+        onFailed: (error) {
+          if (!mounted) return;
+          setState(() => _sending = false);
+          _showSnack(error);
+        },
+      );
     } catch (e) {
       if (!mounted) return;
       setState(() => _sending = false);
@@ -101,11 +107,11 @@ class _VerifyPhoneScreenState extends State<VerifyPhoneScreen> {
     setState(() => _confirming = true);
     try {
       await context.read<AuthService>().confirmPhoneVerificationCode(
-            verificationId: verificationId,
-            smsCode: code,
-            uid: authState.user.uid,
-            phoneNumber: _phoneCtrl.text.trim(),
-          );
+        verificationId: verificationId,
+        smsCode: code,
+        uid: authState.user.uid,
+        phoneNumber: _phoneCtrl.text.trim(),
+      );
       if (!mounted) return;
       context.read<AuthBloc>().add(const RefreshCurrentUser());
     } catch (e) {
@@ -117,7 +123,9 @@ class _VerifyPhoneScreenState extends State<VerifyPhoneScreen> {
   }
 
   void _showSnack(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   void _skip() {
@@ -129,98 +137,109 @@ class _VerifyPhoneScreenState extends State<VerifyPhoneScreen> {
   Widget build(BuildContext context) {
     final codeSent = _verificationId != null;
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Verify Phone'),
-        actions: [
-          TextButton(
-            onPressed: _skip,
-            child: const Text('Skip'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () => context.read<AuthBloc>().add(const AuthLoggedOut()),
-          ),
-        ],
-      ),
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Container(
-                    width: 72,
-                    height: 72,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.12),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.phone_android_rounded, size: 36, color: AppColors.primary),
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    'Verify your phone number',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.headlineMedium,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    codeSent
-                        ? 'Enter the code we sent to ${_phoneCtrl.text.trim()}'
-                        : 'Verifying your number helps venues reach you about your bookings. '
-                            'You can skip this for now and verify later from your profile.',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                  const SizedBox(height: 28),
-                  TextField(
-                    controller: _phoneCtrl,
-                    enabled: !codeSent,
-                    keyboardType: TextInputType.phone,
-                    decoration: const InputDecoration(
-                      labelText: 'Phone number',
-                      hintText: '+201234567890',
-                      prefixIcon: Icon(Icons.phone_outlined),
-                    ),
-                  ),
-                  if (codeSent) ...[
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: _codeCtrl,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Verification code',
-                        prefixIcon: Icon(Icons.sms_outlined),
+    return BlocListener<AuthBloc, AuthState>(
+      listener: (context, state) {
+        if (state is AuthAuthenticated && state.user.phoneVerified) {
+          context.go('/venues');
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          title: const Text('Verify Phone'),
+          actions: [
+            TextButton(onPressed: _skip, child: const Text('Skip')),
+            IconButton(
+              icon: const Icon(Icons.logout),
+              onPressed: () =>
+                  context.read<AuthBloc>().add(const AuthLoggedOut()),
+            ),
+          ],
+        ),
+        body: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 420),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Container(
+                      width: 72,
+                      height: 72,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.phone_android_rounded,
+                        size: 36,
+                        color: AppColors.primary,
                       ),
                     ),
-                  ],
-                  const SizedBox(height: 24),
-                  AppButton(
-                    label: codeSent ? 'Verify' : 'Send Code',
-                    isLoading: _sending || _confirming,
-                    onPressed: codeSent ? _confirmCode : _sendCode,
-                  ),
-                  if (codeSent) ...[
+                    const SizedBox(height: 20),
+                    Text(
+                      'Verify your phone number',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.headlineMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      codeSent
+                          ? 'Enter the code we sent to ${_phoneCtrl.text.trim()}'
+                          : 'Verifying your number helps venues reach you about your bookings. '
+                                'You can skip this for now and verify later from your profile.',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 28),
+                    TextField(
+                      controller: _phoneCtrl,
+                      enabled: !codeSent,
+                      keyboardType: TextInputType.phone,
+                      decoration: const InputDecoration(
+                        labelText: 'Phone number',
+                        hintText: '+201234567890',
+                        prefixIcon: Icon(Icons.phone_outlined),
+                      ),
+                    ),
+                    if (codeSent) ...[
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: _codeCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Verification code',
+                          prefixIcon: Icon(Icons.sms_outlined),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 24),
+                    AppButton(
+                      label: codeSent ? 'Verify' : 'Send Code',
+                      isLoading: _sending || _confirming,
+                      onPressed: codeSent ? _confirmCode : _sendCode,
+                    ),
+                    if (codeSent) ...[
+                      const SizedBox(height: 12),
+                      TextButton(
+                        onPressed: _resendCooldown > 0 ? null : _sendCode,
+                        child: Text(
+                          _resendCooldown > 0
+                              ? 'Resend in $_resendCooldown s'
+                              : 'Resend code',
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 12),
                     TextButton(
-                      onPressed: _resendCooldown > 0 ? null : _sendCode,
-                      child: Text(
-                        _resendCooldown > 0 ? 'Resend in $_resendCooldown s' : 'Resend code',
-                      ),
+                      onPressed: _skip,
+                      child: const Text('Skip for now'),
                     ),
                   ],
-                  const SizedBox(height: 12),
-                  TextButton(
-                    onPressed: _skip,
-                    child: const Text('Skip for now'),
-                  ),
-                ],
+                ),
               ),
             ),
           ),

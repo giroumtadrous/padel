@@ -42,6 +42,14 @@ class BookingSuccess extends BookingState {
   List<Object?> get props => [booking.id];
 }
 
+class CancellationSuccess extends BookingState {
+  final double refundAmount;
+  final bool wasRefunded;
+  const CancellationSuccess({required this.refundAmount, this.wasRefunded = false});
+  @override
+  List<Object?> get props => [refundAmount, wasRefunded];
+}
+
 class BookingHistoryLoading extends BookingState {
   const BookingHistoryLoading();
 }

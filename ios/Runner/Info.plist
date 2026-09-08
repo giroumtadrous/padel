@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Padel</string>
+	<string>Malaaby</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -15,7 +15,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>padel</string>
+	<string>Malaaby</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -42,13 +42,13 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>Padel needs camera access to take a photo of your payment transfer receipt.</string>
+	<string>Malaaby needs camera access to take a photo of your payment transfer receipt.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Padel uses your location to find padel courts near you.</string>
+	<string>Malaaby uses your location to find Malaaby courts near you.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Padel needs photo access to upload your payment transfer receipt.</string>
+	<string>Malaaby needs photo access to upload your payment transfer receipt.</string>
 	<key>NSUserNotificationUsageDescription</key>
-	<string>Padel uses notifications to keep you updated on your bookings.</string>
+	<string>Malaaby uses notifications to keep you updated on your bookings.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UIBackgroundModes</key>

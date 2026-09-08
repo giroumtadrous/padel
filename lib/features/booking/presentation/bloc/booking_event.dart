@@ -43,9 +43,19 @@ class ConfirmBooking extends BookingEvent {
 
 class CancelBooking extends BookingEvent {
   final String bookingId;
-  const CancelBooking(this.bookingId);
+  final double totalPrice;
+  final double depositAmount;
+  final DateTime bookingTime;
+  
+  const CancelBooking({
+    required this.bookingId,
+    required this.totalPrice,
+    required this.depositAmount,
+    required this.bookingTime,
+  });
+  
   @override
-  List<Object?> get props => [bookingId];
+  List<Object?> get props => [bookingId, totalPrice, depositAmount, bookingTime];
 }
 
 class LoadBookingHistory extends BookingEvent {

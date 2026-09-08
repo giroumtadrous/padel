@@ -16,23 +16,25 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _emailCtrl = TextEditingController();
+  final _phoneCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   bool _obscurePassword = true;
 
   @override
   void dispose() {
-    _emailCtrl.dispose();
+    _phoneCtrl.dispose();
     _passwordCtrl.dispose();
     super.dispose();
   }
 
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
-    context.read<AuthBloc>().add(AuthLoginWithEmail(
-          email: _emailCtrl.text.trim(),
-          password: _passwordCtrl.text,
-        ));
+    context.read<AuthBloc>().add(
+      AuthLoginWithPhonePassword(
+        phoneNumber: _phoneCtrl.text.trim(),
+        password: _passwordCtrl.text,
+      ),
+    );
   }
 
   @override
@@ -49,16 +51,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 40),
                 _buildHeader(context),
                 const SizedBox(height: 40),
-                _buildEmailField(),
+                _buildPhoneField(),
                 const SizedBox(height: 16),
                 _buildPasswordField(),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: _showForgotPassword,
-                    child: const Text('Forgot password?'),
-                  ),
-                ),
                 const SizedBox(height: 8),
                 BlocBuilder<AuthBloc, AuthState>(
                   builder: (context, state) => AppButton(
@@ -82,9 +77,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           ? _ErrorBanner(
                               key: ValueKey(message),
                               message: message,
-                              onDismiss: () => context
-                                  .read<AuthBloc>()
-                                  .add(const AuthDismissError()),
+                              onDismiss: () => context.read<AuthBloc>().add(
+                                const AuthDismissError(),
+                              ),
                             )
                           : const SizedBox.shrink(),
                     );
@@ -112,28 +107,37 @@ class _LoginScreenState extends State<LoginScreen> {
             color: AppColors.primary,
             borderRadius: BorderRadius.circular(14),
           ),
-          child: const Icon(Icons.sports_tennis_rounded, color: Colors.black, size: 28),
+          child: const Icon(
+            Icons.sports_tennis_rounded,
+            color: Colors.black,
+            size: 28,
+          ),
         ),
         const SizedBox(height: 24),
         Text('Welcome back', style: Theme.of(context).textTheme.displayMedium),
         const SizedBox(height: 6),
-        Text('Sign in to book your court', style: Theme.of(context).textTheme.bodyMedium),
+        Text(
+          'Sign in to book your court',
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
       ],
     );
   }
 
-  Widget _buildEmailField() {
+  Widget _buildPhoneField() {
     return TextFormField(
-      controller: _emailCtrl,
-      keyboardType: TextInputType.emailAddress,
+      controller: _phoneCtrl,
+      keyboardType: TextInputType.phone,
       textInputAction: TextInputAction.next,
       decoration: const InputDecoration(
-        labelText: 'Email',
-        prefixIcon: Icon(Icons.email_outlined, size: 20),
+        labelText: 'Phone number',
+        hintText: '+201234567890',
+        prefixIcon: Icon(Icons.phone_outlined, size: 20),
       ),
       validator: (v) {
-        if (v == null || v.isEmpty) return 'Email is required';
-        if (!v.contains('@')) return 'Enter a valid email';
+        if (v == null || v.trim().isEmpty) return 'Phone number is required';
+        if (!v.trim().startsWith('+'))
+          return 'Use international format, e.g. +201234567890';
         return null;
       },
     );
@@ -151,7 +155,9 @@ class _LoginScreenState extends State<LoginScreen> {
         suffixIcon: IconButton(
           onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
           icon: Icon(
-            _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+            _obscurePassword
+                ? Icons.visibility_outlined
+                : Icons.visibility_off_outlined,
             size: 20,
             color: AppColors.textSecondary,
           ),
@@ -169,7 +175,10 @@ class _LoginScreenState extends State<LoginScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text("Don't have an account? ", style: Theme.of(context).textTheme.bodyMedium),
+        Text(
+          "Don't have an account? ",
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
         TextButton(
           onPressed: () => context.go('/register'),
           child: const Text('Sign Up'),
@@ -177,41 +186,16 @@ class _LoginScreenState extends State<LoginScreen> {
       ],
     );
   }
-
-  void _showForgotPassword() {
-    final emailCtrl = TextEditingController(text: _emailCtrl.text);
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.card,
-        title: const Text('Reset Password'),
-        content: TextField(
-          controller: emailCtrl,
-          decoration: const InputDecoration(labelText: 'Email'),
-          keyboardType: TextInputType.emailAddress,
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          TextButton(
-            onPressed: () {
-              context.read<AuthBloc>().add(AuthPasswordResetRequested(emailCtrl.text.trim()));
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Password reset email sent')),
-              );
-            },
-            child: const Text('Send'),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 // ── Inline error banner widget ───────────────────────────────────────────────
 
 class _ErrorBanner extends StatelessWidget {
-  const _ErrorBanner({super.key, required this.message, required this.onDismiss});
+  const _ErrorBanner({
+    super.key,
+    required this.message,
+    required this.onDismiss,
+  });
 
   final String message;
   final VoidCallback onDismiss;
@@ -231,20 +215,28 @@ class _ErrorBanner extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 20),
+            const Icon(
+              Icons.error_outline_rounded,
+              color: AppColors.error,
+              size: 20,
+            ),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
                 message,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.error,
-                      fontWeight: FontWeight.w500,
-                    ),
+                  color: AppColors.error,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
             GestureDetector(
               onTap: onDismiss,
-              child: const Icon(Icons.close_rounded, color: AppColors.error, size: 18),
+              child: const Icon(
+                Icons.close_rounded,
+                color: AppColors.error,
+                size: 18,
+              ),
             ),
           ],
         ),

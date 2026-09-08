@@ -72,14 +72,18 @@ class AppRouter {
             loc.startsWith('/booking/') ||
             loc.startsWith('/admin');
 
-        // During initial Firebase auth check, hold at /splash
+        // During initial Firebase auth check, hold at /splash. Keep the
+        // login/register screens mounted while their own auth request runs so
+        // a failed credential check does not fall through to public browsing.
         if (authState is AuthInitial || authState is AuthLoading) {
+          if (isAuthRoute) return null;
           return loc == '/splash' ? null : '/splash';
         }
 
         final isAuthenticated = authState is AuthAuthenticated;
-        final homeRoute =
-            isAuthenticated && authState.user.hasAdminAccess ? '/admin' : '/venues';
+        final homeRoute = isAuthenticated && authState.user.hasAdminAccess
+            ? '/admin'
+            : '/venues';
         if (!isAuthenticated) {
           if (loc == '/splash') return '/venues';
           if (requiresAuthRoute) return '/login';
@@ -87,11 +91,21 @@ class AppRouter {
           return '/venues';
         }
 
+        if (isAuthenticated &&
+            authState is AuthAuthenticated &&
+            !authState.user.phoneVerified &&
+            !authState.user.phoneVerificationSkipped &&
+            loc != '/verify-phone') {
+          return '/verify-phone';
+        }
+
         if (isAuthenticated && isAuthRoute) return homeRoute;
         if (loc == '/splash') return isAuthenticated ? homeRoute : '/venues';
 
         if (authState is AuthAuthenticated) {
-          final isProfileIncomplete = authState.user.preferredSide.isEmpty || authState.user.skillLevel == 0.0;
+          final isProfileIncomplete =
+              authState.user.preferredSide.isEmpty ||
+              authState.user.skillLevel == 0.0;
           if (isProfileIncomplete) {
             return loc == '/complete-profile' ? null : '/complete-profile';
           }
@@ -100,32 +114,26 @@ class AppRouter {
             return homeRoute;
           }
 
-          if (loc.startsWith('/admin') && !authState.user.hasAdminAccess) return '/venues';
+          if (loc.startsWith('/admin') && !authState.user.hasAdminAccess)
+            return '/venues';
 
           // Admins only get the Dashboard + Profile tabs — no player-facing
           // browsing surfaces.
-          final isPlayerOnlyRoute = loc.startsWith('/venues') ||
+          final isPlayerOnlyRoute =
+              loc.startsWith('/venues') ||
               loc.startsWith('/matches') ||
               loc.startsWith('/tournaments') ||
               loc.startsWith('/market');
-          if (isPlayerOnlyRoute && authState.user.hasAdminAccess) return '/admin';
+          if (isPlayerOnlyRoute && authState.user.hasAdminAccess)
+            return '/admin';
         }
 
         return null;
       },
       routes: [
-        GoRoute(
-          path: '/splash',
-          builder: (_, __) => const SplashScreen(),
-        ),
-        GoRoute(
-          path: '/login',
-          builder: (_, __) => const LoginScreen(),
-        ),
-        GoRoute(
-          path: '/register',
-          builder: (_, __) => const RegisterScreen(),
-        ),
+        GoRoute(path: '/splash', builder: (_, __) => const SplashScreen()),
+        GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
+        GoRoute(path: '/register', builder: (_, __) => const RegisterScreen()),
         GoRoute(
           path: '/verify-phone',
           builder: (_, __) => const VerifyPhoneScreen(),
@@ -174,18 +182,12 @@ class AppRouter {
             );
           },
         ),
-        GoRoute(
-          path: '/wallet',
-          builder: (_, __) => const WalletScreen(),
-        ),
+        GoRoute(path: '/wallet', builder: (_, __) => const WalletScreen()),
         GoRoute(
           path: '/help-support',
           builder: (_, __) => const HelpSupportScreen(),
         ),
-        GoRoute(
-          path: '/about',
-          builder: (_, __) => const AboutMalaabyScreen(),
-        ),
+        GoRoute(path: '/about', builder: (_, __) => const AboutMalaabyScreen()),
         StatefulShellRoute.indexedStack(
           builder: (_, __, shell) => MainShell(navigationShell: shell),
           branches: [
@@ -207,9 +209,9 @@ class AppRouter {
                         // bloc so loading venue detail can never overwrite
                         // (and race with) the venues list's own state.
                         return BlocProvider(
-                          create: (ctx) => VenuesBloc(
-                            venueService: ctx.read<VenueService>(),
-                          )..add(LoadVenueDetail(venueId)),
+                          create: (ctx) =>
+                              VenuesBloc(venueService: ctx.read<VenueService>())
+                                ..add(LoadVenueDetail(venueId)),
                           child: VenueDetailScreen(venueId: venueId),
                         );
                       },

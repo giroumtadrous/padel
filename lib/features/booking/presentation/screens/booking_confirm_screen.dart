@@ -15,6 +15,7 @@ import 'package:padel/features/auth/presentation/bloc/auth_state.dart';
 import 'package:padel/features/booking/presentation/bloc/booking_bloc.dart';
 import 'package:padel/features/booking/presentation/bloc/booking_event.dart';
 import 'package:padel/features/booking/presentation/bloc/booking_state.dart';
+import 'package:padel/features/booking/presentation/widgets/cancellation_policy_dialog.dart';
 import 'package:padel/features/matches/data/models/open_match_model.dart';
 import 'package:padel/features/matches/presentation/bloc/matches_bloc.dart';
 import 'package:padel/features/matches/presentation/bloc/matches_event.dart';
@@ -42,6 +43,7 @@ class _BookingConfirmScreenState extends State<BookingConfirmScreen> {
   final PaymentProofStorageService _proofStorage = PaymentProofStorageService.instance;
   XFile? _proofImage;
   bool _uploadingProof = false;
+  bool _policyDialogShown = false;
 
   // Cached once we have a real hold, so the UI keeps showing the booking
   // summary through BookingInProgress/BookingSuccess instead of flashing a
@@ -636,17 +638,43 @@ class _BookingConfirmScreenState extends State<BookingConfirmScreen> {
   /// right here (manual transfer methods just need the proof photo above;
   /// wallet needs nothing extra at all).
   Future<void> _proceed(BuildContext context, bool useLoyaltyDiscount) async {
-    if (_isCardPayment) {
-      final authState = context.read<AuthBloc>().state;
-      if (authState is! AuthAuthenticated) return;
-      context.push('/booking/card-payment', extra: {
-        'venueName': widget.venueName,
-        'courtName': widget.courtName,
-        'useLoyaltyDiscount': useLoyaltyDiscount,
-      });
-      return;
+    // Only show the policy dialog once per session
+    if (!_policyDialogShown) {
+      _policyDialogShown = true;
+      await showCancellationPolicyDialog(
+        context,
+        onAgree: () async {
+          if (_isCardPayment) {
+            final authState = context.read<AuthBloc>().state;
+            if (authState is! AuthAuthenticated) return;
+            if (context.mounted) {
+              context.push('/booking/card-payment', extra: {
+                'venueName': widget.venueName,
+                'courtName': widget.courtName,
+                'useLoyaltyDiscount': useLoyaltyDiscount,
+              });
+            }
+            return;
+          }
+          await _confirm(context, useLoyaltyDiscount);
+        },
+      );
+    } else {
+      // Policy already shown this session, proceed directly
+      if (_isCardPayment) {
+        final authState = context.read<AuthBloc>().state;
+        if (authState is! AuthAuthenticated) return;
+        if (context.mounted) {
+          context.push('/booking/card-payment', extra: {
+            'venueName': widget.venueName,
+            'courtName': widget.courtName,
+            'useLoyaltyDiscount': useLoyaltyDiscount,
+          });
+        }
+        return;
+      }
+      await _confirm(context, useLoyaltyDiscount);
     }
-    await _confirm(context, useLoyaltyDiscount);
   }
 
   Future<void> _confirm(BuildContext context, bool useLoyaltyDiscount) async {

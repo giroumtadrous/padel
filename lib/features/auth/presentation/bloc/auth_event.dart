@@ -18,6 +18,52 @@ class AuthLoginWithEmail extends AuthEvent {
   List<Object?> get props => [email, password];
 }
 
+class AuthLoginWithPhonePassword extends AuthEvent {
+  final String phoneNumber;
+  final String password;
+  const AuthLoginWithPhonePassword({
+    required this.phoneNumber,
+    required this.password,
+  });
+  @override
+  List<Object?> get props => [phoneNumber, password];
+}
+
+class AuthPhoneCodeRequested extends AuthEvent {
+  final String phoneNumber;
+  const AuthPhoneCodeRequested(this.phoneNumber);
+  @override
+  List<Object?> get props => [phoneNumber];
+}
+
+class AuthPhoneCodeConfirmed extends AuthEvent {
+  final String verificationId;
+  final String smsCode;
+  final String phoneNumber;
+  final String? displayName;
+  final double? skillLevel;
+  final String? preferredSide;
+
+  const AuthPhoneCodeConfirmed({
+    required this.verificationId,
+    required this.smsCode,
+    required this.phoneNumber,
+    this.displayName,
+    this.skillLevel,
+    this.preferredSide,
+  });
+
+  @override
+  List<Object?> get props => [
+    verificationId,
+    smsCode,
+    phoneNumber,
+    displayName,
+    skillLevel,
+    preferredSide,
+  ];
+}
+
 class AuthLoginWithGoogle extends AuthEvent {
   const AuthLoginWithGoogle();
 }
@@ -52,7 +98,36 @@ class AuthRegister extends AuthEvent {
     required this.preferredSide,
   });
   @override
-  List<Object?> get props => [email, password, displayName, skillLevel, preferredSide];
+  List<Object?> get props => [
+    email,
+    password,
+    displayName,
+    skillLevel,
+    preferredSide,
+  ];
+}
+
+class AuthRegisterWithPhonePassword extends AuthEvent {
+  final String phoneNumber;
+  final String password;
+  final String displayName;
+  final double skillLevel;
+  final String preferredSide;
+  const AuthRegisterWithPhonePassword({
+    required this.phoneNumber,
+    required this.password,
+    required this.displayName,
+    required this.skillLevel,
+    required this.preferredSide,
+  });
+  @override
+  List<Object?> get props => [
+    phoneNumber,
+    password,
+    displayName,
+    skillLevel,
+    preferredSide,
+  ];
 }
 
 class AuthLoggedOut extends AuthEvent {
