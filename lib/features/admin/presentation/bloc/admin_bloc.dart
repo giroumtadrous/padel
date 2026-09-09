@@ -9,20 +9,25 @@ class AdminBloc extends Bloc<AdminEvent, AdminState> {
   final AdminService _adminService;
   final VenueService _venueService;
 
-  AdminBloc({required AdminService adminService, required VenueService venueService})
-      : _adminService = adminService,
-        _venueService = venueService,
-        super(const AdminInitial()) {
+  AdminBloc({
+    required AdminService adminService,
+    required VenueService venueService,
+  }) : _adminService = adminService,
+       _venueService = venueService,
+       super(const AdminInitial()) {
     on<LoadAdminDashboard>(_onLoadDashboard);
     on<BlockSlot>(_onBlockSlot);
     on<UnblockSlot>(_onUnblockSlot);
     on<ToggleCourtActive>(_onToggleCourt);
     on<UpdateCourt>(_onUpdateCourt);
-    on<AssignCourtAdmin>(_onAssignCourtAdmin);
-    on<UnassignCourtAdmin>(_onUnassignCourtAdmin);
+    on<AssignVenueAdmin>(_onAssignVenueAdmin);
+    on<UnassignVenueAdmin>(_onUnassignVenueAdmin);
   }
 
-  Future<void> _onLoadDashboard(LoadAdminDashboard event, Emitter<AdminState> emit) async {
+  Future<void> _onLoadDashboard(
+    LoadAdminDashboard event,
+    Emitter<AdminState> emit,
+  ) async {
     emit(const AdminLoading());
     try {
       final venue = await _venueService.getVenue(event.venueId);
@@ -30,13 +35,15 @@ class AdminBloc extends Bloc<AdminEvent, AdminState> {
 
       await emit.onEach(
         _adminService.getDailyRevenueStream(event.venueId, event.date),
-        onData: (data) => emit(AdminDashboardLoaded(
-          venue: venue,
-          courts: courts,
-          todaysBookings: (data['bookings'] as List).cast<BookingModel>(),
-          totalRevenue: data['total'] as double,
-          selectedDate: event.date,
-        )),
+        onData: (data) => emit(
+          AdminDashboardLoaded(
+            venue: venue,
+            courts: courts,
+            todaysBookings: (data['bookings'] as List).cast<BookingModel>(),
+            totalRevenue: data['total'] as double,
+            selectedDate: event.date,
+          ),
+        ),
         onError: (e, _) => emit(AdminError(e.toString())),
       );
     } catch (e) {
@@ -59,7 +66,10 @@ class AdminBloc extends Bloc<AdminEvent, AdminState> {
     }
   }
 
-  Future<void> _onUnblockSlot(UnblockSlot event, Emitter<AdminState> emit) async {
+  Future<void> _onUnblockSlot(
+    UnblockSlot event,
+    Emitter<AdminState> emit,
+  ) async {
     try {
       await _adminService.unblockSlot(
         venueId: event.venueId,
@@ -73,16 +83,30 @@ class AdminBloc extends Bloc<AdminEvent, AdminState> {
     }
   }
 
-  Future<void> _onToggleCourt(ToggleCourtActive event, Emitter<AdminState> emit) async {
+  Future<void> _onToggleCourt(
+    ToggleCourtActive event,
+    Emitter<AdminState> emit,
+  ) async {
     try {
-      await _adminService.toggleCourtActive(event.venueId, event.courtId, event.isActive);
-      emit(AdminActionSuccess(event.isActive ? 'Court activated' : 'Court deactivated'));
+      await _adminService.toggleCourtActive(
+        event.venueId,
+        event.courtId,
+        event.isActive,
+      );
+      emit(
+        AdminActionSuccess(
+          event.isActive ? 'Court activated' : 'Court deactivated',
+        ),
+      );
     } catch (e) {
       emit(AdminError(e.toString()));
     }
   }
 
-  Future<void> _onUpdateCourt(UpdateCourt event, Emitter<AdminState> emit) async {
+  Future<void> _onUpdateCourt(
+    UpdateCourt event,
+    Emitter<AdminState> emit,
+  ) async {
     try {
       await _venueService.updateCourt(event.venueId, event.court);
       emit(const AdminActionSuccess('Court updated'));
@@ -91,23 +115,31 @@ class AdminBloc extends Bloc<AdminEvent, AdminState> {
     }
   }
 
-  Future<void> _onAssignCourtAdmin(AssignCourtAdmin event, Emitter<AdminState> emit) async {
+  Future<void> _onAssignVenueAdmin(
+    AssignVenueAdmin event,
+    Emitter<AdminState> emit,
+  ) async {
     try {
-      await _adminService.assignCourtAdmin(
+      await _adminService.assignVenueAdmin(
         venueId: event.venueId,
-        courtId: event.courtId,
-        adminEmail: event.adminEmail,
+        adminPhone: event.adminPhone,
       );
-      emit(AdminActionSuccess('${event.adminEmail} assigned to this court'));
+      emit(AdminActionSuccess('${event.adminPhone} assigned to this venue'));
     } catch (e) {
       emit(AdminError(e.toString()));
     }
   }
 
-  Future<void> _onUnassignCourtAdmin(UnassignCourtAdmin event, Emitter<AdminState> emit) async {
+  Future<void> _onUnassignVenueAdmin(
+    UnassignVenueAdmin event,
+    Emitter<AdminState> emit,
+  ) async {
     try {
-      await _adminService.unassignCourtAdmin(venueId: event.venueId, courtId: event.courtId);
-      emit(const AdminActionSuccess('Court admin removed'));
+      await _adminService.unassignVenueAdmin(
+        venueId: event.venueId,
+        adminPhone: event.adminPhone,
+      );
+      emit(AdminActionSuccess('${event.adminPhone} removed from venue'));
     } catch (e) {
       emit(AdminError(e.toString()));
     }

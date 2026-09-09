@@ -249,6 +249,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       final updated = await _authService.updateProfile(
         uid: current.user.uid,
         displayName: event.displayName,
+        photoUrl: event.photoUrl,
         preferredSide: event.preferredSide,
         phone: event.phone,
         skillLevel: event.skillLevel,

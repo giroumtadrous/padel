@@ -33,10 +33,24 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   void initState() {
     super.initState();
     final authState = context.read<AuthBloc>().state;
-    if (authState is AuthAuthenticated && authState.user.managedVenueIds.isNotEmpty) {
-      _selectedVenueId = authState.user.managedVenueIds.first;
-      _loadVenueList(authState.user.uid);
+    if (authState is AuthAuthenticated) {
+      if (authState.user.isAdmin) {
+        _loadAllVenues();
+      } else if (authState.user.managedVenueIds.isNotEmpty) {
+        _selectedVenueId = authState.user.managedVenueIds.first;
+        _loadVenueList(authState.user.uid);
+      }
     }
+    _load();
+  }
+
+  Future<void> _loadAllVenues() async {
+    final venues = await context.read<AdminService>().getAllVenues();
+    if (!mounted) return;
+    setState(() {
+      _managedVenues = venues;
+      _selectedVenueId = venues.isNotEmpty ? venues.first.id : null;
+    });
     _load();
   }
 
@@ -49,11 +63,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   void _load() {
     final authState = context.read<AuthBloc>().state;
     if (authState is AuthAuthenticated && _selectedVenueId != null) {
-      context.read<AdminBloc>().add(LoadAdminDashboard(
-            adminId: authState.user.uid,
-            venueId: _selectedVenueId!,
-            date: _selectedDate,
-          ));
+      context.read<AdminBloc>().add(
+        LoadAdminDashboard(
+          adminId: authState.user.uid,
+          venueId: _selectedVenueId!,
+          date: _selectedDate,
+        ),
+      );
     }
   }
 
@@ -96,13 +112,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
     try {
       await context.read<AdminService>().updateVenueGoogleMapsUrl(
-            venueId: venue.id,
-            googleMapsUrl: controller.text,
-          );
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Venue map link updated')),
+        venueId: venue.id,
+        googleMapsUrl: controller.text,
       );
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Venue map link updated')));
       _load();
     } catch (e) {
       if (!mounted) return;
@@ -118,9 +134,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   Widget build(BuildContext context) {
     final authState = context.watch<AuthBloc>().state;
     if (authState is AuthAuthenticated &&
-        authState.user.managedVenueIds.isEmpty &&
-        authState.user.managedCourtIds.isNotEmpty) {
-      return CourtAdminDashboardScreen(managedCourtIds: authState.user.managedCourtIds);
+        !authState.user.isAdmin &&
+        authState.user.managedVenueIds.isNotEmpty) {
+      return CourtAdminDashboardScreen(
+        managedVenueIds: authState.user.managedVenueIds,
+      );
     }
 
     return Scaffold(
@@ -137,13 +155,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       body: BlocConsumer<AdminBloc, AdminState>(
         listener: (context, state) {
           if (state is AdminActionSuccess) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.message)),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text(state.message)));
             _load();
           } else if (state is AdminError) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.message), backgroundColor: AppColors.error),
+              SnackBar(
+                content: Text(state.message),
+                backgroundColor: AppColors.error,
+              ),
             );
           }
         },
@@ -158,23 +179,30 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               selectedDate: _selectedDate,
               managedVenues: _managedVenues,
               onVenueChanged: _onVenueChanged,
-              onCourtsTap: () => context.go('/admin/courts?venueId=${state.venue.id}'),
-              onRevenueTap: () => context.go('/admin/revenue?venueId=${state.venue.id}'),
-              onPaymentsTap: () => context.go('/admin/payments?venueId=${state.venue.id}'),
+              onCourtsTap: () =>
+                  context.go('/admin/courts?venueId=${state.venue.id}'),
+              onRevenueTap: () =>
+                  context.go('/admin/revenue?venueId=${state.venue.id}'),
+              onPaymentsTap: () =>
+                  context.go('/admin/payments?venueId=${state.venue.id}'),
               onTournamentsTap: () => context.go('/admin/tournaments'),
               onMarketTap: () => context.go('/admin/market'),
               onSkillRequestsTap: () => context.go('/admin/skill-requests'),
-              onReviewsTap: () => context.go('/admin/reviews?venueId=${state.venue.id}'),
+              onReviewsTap: () =>
+                  context.go('/admin/reviews?venueId=${state.venue.id}'),
               onMapLinkTap: () => _editVenueMapLink(state.venue),
-              onUserTap: (userId) => context.push('/admin/user/$userId?venueId=${state.venue.id}'),
+              onUserTap: (userId) =>
+                  context.push('/admin/user/$userId?venueId=${state.venue.id}'),
             );
           }
 
           final authState = context.read<AuthBloc>().state;
-          if (authState is AuthAuthenticated && authState.user.managedVenueIds.isEmpty) {
+          if (authState is AuthAuthenticated &&
+              authState.user.managedVenueIds.isEmpty) {
             return const AppEmptyView(
               title: 'No venues assigned',
-              subtitle: 'Contact support to get a venue assigned to your account',
+              subtitle:
+                  'Contact support to get a venue assigned to your account',
               icon: Icons.store_outlined,
             );
           }
@@ -251,21 +279,32 @@ class _DashboardContent extends StatelessWidget {
               decoration: const InputDecoration(labelText: 'Venue'),
               dropdownColor: AppColors.card,
               items: managedVenues
-                  .map((v) => DropdownMenuItem(value: v.id, child: Text(v.name)))
+                  .map(
+                    (v) => DropdownMenuItem(value: v.id, child: Text(v.name)),
+                  )
                   .toList(),
               onChanged: (id) {
                 if (id != null) onVenueChanged(id);
               },
             )
           else
-            Text(state.venue.name, style: Theme.of(context).textTheme.displayMedium),
-          Text(_dateFmt.format(selectedDate), style: Theme.of(context).textTheme.bodyMedium),
+            Text(
+              state.venue.name,
+              style: Theme.of(context).textTheme.displayMedium,
+            ),
+          Text(
+            _dateFmt.format(selectedDate),
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
           const SizedBox(height: 20),
           _buildStatsRow(context),
           const SizedBox(height: 20),
           _buildQuickActions(context),
           const SizedBox(height: 24),
-          Text('Courts Schedule', style: Theme.of(context).textTheme.headlineMedium),
+          Text(
+            'Courts Schedule',
+            style: Theme.of(context).textTheme.headlineMedium,
+          ),
           const SizedBox(height: 12),
           CourtsHoursGrid(
             key: ValueKey('${state.venue.id}-${_dateFmt.format(selectedDate)}'),
@@ -278,7 +317,10 @@ class _DashboardContent extends StatelessWidget {
             onUserTap: onUserTap,
           ),
           const SizedBox(height: 24),
-          Text('Today\'s Bookings', style: Theme.of(context).textTheme.headlineMedium),
+          Text(
+            'Today\'s Bookings',
+            style: Theme.of(context).textTheme.headlineMedium,
+          ),
           const SizedBox(height: 12),
           if (state.todaysBookings.isEmpty)
             const AppEmptyView(
@@ -287,11 +329,13 @@ class _DashboardContent extends StatelessWidget {
               icon: Icons.calendar_today_rounded,
             )
           else
-            ...state.todaysBookings.map((b) => _AdminBookingRow(
-                  booking: b,
-                  timeFmt: _timeFmt,
-                  onTap: () => onUserTap(b.userId),
-                )),
+            ...state.todaysBookings.map(
+              (b) => _AdminBookingRow(
+                booking: b,
+                timeFmt: _timeFmt,
+                onTap: () => onUserTap(b.userId),
+              ),
+            ),
         ],
       ),
     );
@@ -323,7 +367,9 @@ class _DashboardContent extends StatelessWidget {
         const SizedBox(width: 12),
         _StatCard(
           label: 'Rating',
-          value: state.venue.reviewCount > 0 ? state.venue.rating.toStringAsFixed(1) : '—',
+          value: state.venue.reviewCount > 0
+              ? state.venue.rating.toStringAsFixed(1)
+              : '—',
           icon: Icons.star_rounded,
           color: AppColors.gold,
         ),
@@ -416,7 +462,12 @@ class _StatCard extends StatelessWidget {
   final IconData icon;
   final Color color;
 
-  const _StatCard({required this.label, required this.value, required this.icon, required this.color});
+  const _StatCard({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -433,7 +484,12 @@ class _StatCard extends StatelessWidget {
           children: [
             Icon(icon, color: color, size: 20),
             const SizedBox(height: 8),
-            Text(value, style: Theme.of(context).textTheme.headlineLarge?.copyWith(color: color)),
+            Text(
+              value,
+              style: Theme.of(
+                context,
+              ).textTheme.headlineLarge?.copyWith(color: color),
+            ),
             Text(label, style: Theme.of(context).textTheme.bodySmall),
           ],
         ),
@@ -447,7 +503,11 @@ class _ActionCard extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
 
-  const _ActionCard({required this.icon, required this.label, required this.onTap});
+  const _ActionCard({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -463,8 +523,17 @@ class _ActionCard extends StatelessWidget {
           children: [
             Icon(icon, color: AppColors.primary, size: 22),
             const SizedBox(width: 10),
-            Expanded(child: Text(label, style: Theme.of(context).textTheme.titleMedium)),
-            const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textSecondary),
+            Expanded(
+              child: Text(
+                label,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ),
+            const Icon(
+              Icons.arrow_forward_ios_rounded,
+              size: 14,
+              color: AppColors.textSecondary,
+            ),
           ],
         ),
       ),
@@ -477,7 +546,11 @@ class _AdminBookingRow extends StatelessWidget {
   final DateFormat timeFmt;
   final VoidCallback onTap;
 
-  const _AdminBookingRow({required this.booking, required this.timeFmt, required this.onTap});
+  const _AdminBookingRow({
+    required this.booking,
+    required this.timeFmt,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -496,7 +569,9 @@ class _AdminBookingRow extends StatelessWidget {
             future: adminService.getUserProfile(booking.userId),
             builder: (context, snap) {
               final user = snap.data;
-              final displayName = user?.displayName.isNotEmpty == true ? user!.displayName : booking.userId;
+              final displayName = user?.displayName.isNotEmpty == true
+                  ? user!.displayName
+                  : booking.userId;
               return Row(
                 children: [
                   Container(
@@ -512,7 +587,10 @@ class _AdminBookingRow extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(booking.courtName, style: Theme.of(context).textTheme.titleMedium),
+                        Text(
+                          booking.courtName,
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
                         Text(
                           'Booked by $displayName',
                           style: Theme.of(context).textTheme.bodySmall,
@@ -528,10 +606,16 @@ class _AdminBookingRow extends StatelessWidget {
                   ),
                   Text(
                     'EGP ${booking.totalPrice.toInt()}',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(color: AppColors.success),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.titleMedium?.copyWith(color: AppColors.success),
                   ),
                   const SizedBox(width: 4),
-                  const Icon(Icons.person_outline_rounded, size: 16, color: AppColors.textSecondary),
+                  const Icon(
+                    Icons.person_outline_rounded,
+                    size: 16,
+                    color: AppColors.textSecondary,
+                  ),
                 ],
               );
             },

@@ -6,26 +6,32 @@ import 'package:padel/core/constants/app_colors.dart';
 import 'package:padel/core/widgets/app_error_view.dart';
 import 'package:padel/core/widgets/app_loading.dart';
 import 'package:padel/features/admin/data/services/admin_service.dart';
+import 'package:padel/features/admin/presentation/screens/courts_hours_grid.dart';
 import 'package:padel/features/auth/data/models/user_model.dart';
 import 'package:padel/features/booking/data/models/booking_model.dart';
 import 'package:padel/features/venues/data/models/court_model.dart';
+import 'package:padel/features/venues/data/models/venue_model.dart';
 
-/// Read-only dashboard for a scoped single-court admin — no management
-/// actions, just the day's bookings and the numbers that matter for one
-/// court: revenue, booking count, and slot occupancy.
+/// Scoped venue-owner dashboard. Owners can inspect every assigned court and
+/// block or unblock maintenance slots, but cannot edit venue configuration.
 class CourtAdminDashboardScreen extends StatefulWidget {
-  final List<String> managedCourtIds;
-  const CourtAdminDashboardScreen({super.key, required this.managedCourtIds});
+  final List<String> managedVenueIds;
+  const CourtAdminDashboardScreen({super.key, required this.managedVenueIds});
 
   @override
-  State<CourtAdminDashboardScreen> createState() => _CourtAdminDashboardScreenState();
+  State<CourtAdminDashboardScreen> createState() =>
+      _CourtAdminDashboardScreenState();
 }
 
 class _ManagedCourt {
   final String venueId;
-  final String venueName;
+  final VenueModel venue;
   final CourtModel court;
-  const _ManagedCourt({required this.venueId, required this.venueName, required this.court});
+  const _ManagedCourt({
+    required this.venueId,
+    required this.venue,
+    required this.court,
+  });
 }
 
 class _CourtAdminDashboardScreenState extends State<CourtAdminDashboardScreen> {
@@ -44,17 +50,14 @@ class _CourtAdminDashboardScreenState extends State<CourtAdminDashboardScreen> {
 
   Future<void> _load() async {
     final adminService = context.read<AdminService>();
-    final refs = widget.managedCourtIds.map((composite) {
-      final parts = composite.split('::');
-      return (venueId: parts.isNotEmpty ? parts[0] : '', courtId: parts.length > 1 ? parts[1] : '');
-    }).toList();
-
     final courts = <_ManagedCourt>[];
-    for (final ref in refs) {
-      final court = await adminService.getCourtByRef(ref.venueId, ref.courtId);
-      if (court == null) continue;
-      final venueName = await adminService.getVenueName(ref.venueId);
-      courts.add(_ManagedCourt(venueId: ref.venueId, venueName: venueName, court: court));
+    for (final venueId in widget.managedVenueIds) {
+      final venue = await adminService.getVenue(venueId);
+      if (venue == null) continue;
+      final venueCourts = await adminService.getAdminCourts(venueId);
+      for (final court in venueCourts) {
+        courts.add(_ManagedCourt(venueId: venueId, venue: venue, court: court));
+      }
     }
 
     if (!mounted) return;
@@ -69,23 +72,29 @@ class _CourtAdminDashboardScreenState extends State<CourtAdminDashboardScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Court'),
+        title: const Text('My Venues'),
         actions: [
-          IconButton(onPressed: _pickDate, icon: const Icon(Icons.calendar_today_rounded)),
+          IconButton(
+            onPressed: _pickDate,
+            icon: const Icon(Icons.calendar_today_rounded),
+          ),
         ],
       ),
       body: _loading
           ? const AppLoadingSpinner()
           : _selected == null
-              ? const AppErrorView(message: 'No assigned court could be found')
-              : _DashboardBody(
-                  managed: _selected!,
-                  selectedDate: _selectedDate,
-                  headerFmt: _headerFmt,
-                  timeFmt: _timeFmt,
-                  allCourts: _courts,
-                  onCourtChanged: (c) => setState(() => _selected = c),
-                ),
+          ? const AppErrorView(message: 'No assigned venue could be found')
+          : _DashboardBody(
+              managed: _selected!,
+              selectedDate: _selectedDate,
+              headerFmt: _headerFmt,
+              timeFmt: _timeFmt,
+              allCourts: _courts,
+              onCourtChanged: (c) => setState(() => _selected = c),
+              onUserTap: (userId) => context.push(
+                '/admin/user/$userId?venueId=${_selected!.venueId}',
+              ),
+            ),
     );
   }
 
@@ -96,7 +105,9 @@ class _CourtAdminDashboardScreenState extends State<CourtAdminDashboardScreen> {
       firstDate: DateTime.now().subtract(const Duration(days: 30)),
       lastDate: DateTime.now().add(const Duration(days: 60)),
       builder: (ctx, child) => Theme(
-        data: Theme.of(ctx).copyWith(colorScheme: const ColorScheme.dark(primary: AppColors.primary)),
+        data: Theme.of(ctx).copyWith(
+          colorScheme: const ColorScheme.dark(primary: AppColors.primary),
+        ),
         child: child!,
       ),
     );
@@ -111,6 +122,7 @@ class _DashboardBody extends StatelessWidget {
   final DateFormat timeFmt;
   final List<_ManagedCourt> allCourts;
   final ValueChanged<_ManagedCourt> onCourtChanged;
+  final ValueChanged<String> onUserTap;
 
   const _DashboardBody({
     required this.managed,
@@ -119,6 +131,7 @@ class _DashboardBody extends StatelessWidget {
     required this.timeFmt,
     required this.allCourts,
     required this.onCourtChanged,
+    required this.onUserTap,
   });
 
   @override
@@ -137,10 +150,12 @@ class _DashboardBody extends StatelessWidget {
               decoration: const InputDecoration(labelText: 'Court'),
               dropdownColor: AppColors.card,
               items: allCourts
-                  .map((c) => DropdownMenuItem(
-                        value: c,
-                        child: Text('${c.venueName} · ${c.court.name}'),
-                      ))
+                  .map(
+                    (c) => DropdownMenuItem(
+                      value: c,
+                      child: Text('${c.venue.name} · ${c.court.name}'),
+                    ),
+                  )
                   .toList(),
               onChanged: (c) {
                 if (c != null) onCourtChanged(c);
@@ -149,15 +164,26 @@ class _DashboardBody extends StatelessWidget {
             const SizedBox(height: 12),
           ],
           Text(court.name, style: Theme.of(context).textTheme.displayMedium),
-          Text(managed.venueName, style: Theme.of(context).textTheme.bodyMedium),
-          Text(headerFmt.format(selectedDate), style: Theme.of(context).textTheme.bodySmall),
+          Text(
+            managed.venue.name,
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          Text(
+            headerFmt.format(selectedDate),
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
           const SizedBox(height: 20),
           StreamBuilder<Map<String, dynamic>>(
-            stream: adminService.getCourtDailyStatsStream(court.id, selectedDate),
+            stream: adminService.getCourtDailyStatsStream(
+              court.id,
+              selectedDate,
+            ),
             builder: (context, statsSnap) {
               final total = (statsSnap.data?['total'] as double?) ?? 0.0;
               final count = (statsSnap.data?['count'] as int?) ?? 0;
-              final bookings = (statsSnap.data?['bookings'] as List<BookingModel>?) ?? const [];
+              final bookings =
+                  (statsSnap.data?['bookings'] as List<BookingModel>?) ??
+                  const [];
 
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -179,12 +205,17 @@ class _DashboardBody extends StatelessWidget {
                       ),
                       const SizedBox(width: 12),
                       StreamBuilder<Map<String, int>>(
-                        stream:
-                            adminService.getCourtOccupancyStream(managed.venueId, court.id, selectedDate),
+                        stream: adminService.getCourtOccupancyStream(
+                          managed.venueId,
+                          court.id,
+                          selectedDate,
+                        ),
                         builder: (context, occSnap) {
                           final booked = occSnap.data?['booked'] ?? 0;
                           final totalSlots = occSnap.data?['total'] ?? 0;
-                          final pct = totalSlots == 0 ? 0 : ((booked / totalSlots) * 100).round();
+                          final pct = totalSlots == 0
+                              ? 0
+                              : ((booked / totalSlots) * 100).round();
                           return _StatCard(
                             label: 'Occupancy',
                             value: '$pct%',
@@ -196,7 +227,25 @@ class _DashboardBody extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 24),
-                  Text('Bookings', style: Theme.of(context).textTheme.headlineMedium),
+                  Text(
+                    'Court Schedule',
+                    style: Theme.of(context).textTheme.headlineMedium,
+                  ),
+                  const SizedBox(height: 12),
+                  CourtsHoursGrid(
+                    venueId: managed.venueId,
+                    courts: [court],
+                    date: selectedDate,
+                    openingHour: managed.venue.openingHour,
+                    closingHour: managed.venue.closingHour,
+                    todaysBookings: bookings,
+                    onUserTap: onUserTap,
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Bookings',
+                    style: Theme.of(context).textTheme.headlineMedium,
+                  ),
                   const SizedBox(height: 12),
                   if (bookings.isEmpty)
                     const AppEmptyView(
@@ -205,11 +254,13 @@ class _DashboardBody extends StatelessWidget {
                       icon: Icons.calendar_today_rounded,
                     )
                   else
-                    ...bookings.map((b) => _BookingRow(
-                          booking: b,
-                          timeFmt: timeFmt,
-                          venueId: managed.venueId,
-                        )),
+                    ...bookings.map(
+                      (b) => _BookingRow(
+                        booking: b,
+                        timeFmt: timeFmt,
+                        venueId: managed.venueId,
+                      ),
+                    ),
                 ],
               );
             },
@@ -226,7 +277,12 @@ class _StatCard extends StatelessWidget {
   final IconData icon;
   final Color color;
 
-  const _StatCard({required this.label, required this.value, required this.icon, required this.color});
+  const _StatCard({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -243,7 +299,12 @@ class _StatCard extends StatelessWidget {
           children: [
             Icon(icon, color: color, size: 20),
             const SizedBox(height: 8),
-            Text(value, style: Theme.of(context).textTheme.headlineLarge?.copyWith(color: color)),
+            Text(
+              value,
+              style: Theme.of(
+                context,
+              ).textTheme.headlineLarge?.copyWith(color: color),
+            ),
             Text(label, style: Theme.of(context).textTheme.bodySmall),
           ],
         ),
@@ -257,7 +318,11 @@ class _BookingRow extends StatelessWidget {
   final DateFormat timeFmt;
   final String venueId;
 
-  const _BookingRow({required this.booking, required this.timeFmt, required this.venueId});
+  const _BookingRow({
+    required this.booking,
+    required this.timeFmt,
+    required this.venueId,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -274,12 +339,15 @@ class _BookingRow extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(10),
-          onTap: () => context.push('/admin/user/${booking.userId}?venueId=$venueId'),
+          onTap: () =>
+              context.push('/admin/user/${booking.userId}?venueId=$venueId'),
           child: FutureBuilder<UserModel?>(
             future: adminService.getUserProfile(booking.userId),
             builder: (context, snap) {
               final user = snap.data;
-              final displayName = user?.displayName.isNotEmpty == true ? user!.displayName : booking.userId;
+              final displayName = user?.displayName.isNotEmpty == true
+                  ? user!.displayName
+                  : booking.userId;
 
               return Row(
                 children: [
@@ -296,7 +364,10 @@ class _BookingRow extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(booking.courtName, style: Theme.of(context).textTheme.titleMedium),
+                        Text(
+                          booking.courtName,
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
                         Text(
                           'Booked by $displayName',
                           style: Theme.of(context).textTheme.bodySmall,
@@ -312,10 +383,16 @@ class _BookingRow extends StatelessWidget {
                   ),
                   Text(
                     'EGP ${booking.totalPrice.toInt()}',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(color: AppColors.success),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.titleMedium?.copyWith(color: AppColors.success),
                   ),
                   const SizedBox(width: 6),
-                  const Icon(Icons.person_outline_rounded, size: 16, color: AppColors.textSecondary),
+                  const Icon(
+                    Icons.person_outline_rounded,
+                    size: 16,
+                    color: AppColors.textSecondary,
+                  ),
                 ],
               );
             },

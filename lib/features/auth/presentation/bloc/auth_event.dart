@@ -136,17 +136,25 @@ class AuthLoggedOut extends AuthEvent {
 
 class AuthProfileUpdated extends AuthEvent {
   final String? displayName;
+  final String? photoUrl;
   final String? preferredSide;
   final String? phone;
   final double? skillLevel;
   const AuthProfileUpdated({
     this.displayName,
+    this.photoUrl,
     this.preferredSide,
     this.phone,
     this.skillLevel,
   });
   @override
-  List<Object?> get props => [displayName, preferredSide, phone, skillLevel];
+  List<Object?> get props => [
+    displayName,
+    photoUrl,
+    preferredSide,
+    phone,
+    skillLevel,
+  ];
 }
 
 /// Submits a skill-level change for admin review — does not change

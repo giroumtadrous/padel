@@ -12,7 +12,9 @@ import 'package:padel/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:padel/features/auth/presentation/bloc/auth_event.dart';
 import 'package:padel/features/auth/presentation/bloc/auth_state.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:padel/features/auth/data/services/profile_photo_storage_service.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -50,6 +52,8 @@ class _ProfileContentState extends State<_ProfileContent> {
   late String _preferredSide;
   String? _currentUserPrimaryProvider;
   bool _deletingAccount = false;
+  bool _uploadingPhoto = false;
+  final ProfilePhotoStorageService _photoStorage = ProfilePhotoStorageService();
 
   @override
   void initState() {
@@ -94,18 +98,6 @@ class _ProfileContentState extends State<_ProfileContent> {
                   ],
 
                   _buildAppInfoSection(context),
-                  const SizedBox(height: 16),
-
-                  // Favorites
-                  _buildSection(
-                    title: 'Favorites',
-                    icon: Icons.favorite_rounded,
-                    iconColor: AppColors.primary,
-                    child: Text(
-                      '${user.favoriteVenueIds.length} saved venue${user.favoriteVenueIds.length == 1 ? '' : 's'}',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                  ),
                   const SizedBox(height: 16),
 
                   // Skill level
@@ -412,24 +404,54 @@ class _ProfileContentState extends State<_ProfileContent> {
                   ),
                 ],
               ),
-              CircleAvatar(
-                radius: 40,
-                backgroundColor: AppColors.primary,
-                backgroundImage: user.photoUrl != null
-                    ? NetworkImage(user.photoUrl!)
-                    : null,
-                child: user.photoUrl == null
-                    ? Text(
-                        user.displayName.isNotEmpty
-                            ? user.displayName[0].toUpperCase()
-                            : '?',
-                        style: const TextStyle(
-                          fontSize: 30,
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
+              GestureDetector(
+                onTap: _uploadingPhoto ? null : _changeProfilePhoto,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    CircleAvatar(
+                      radius: 40,
+                      backgroundColor: AppColors.primary,
+                      backgroundImage: user.photoUrl != null
+                          ? NetworkImage(user.photoUrl!)
+                          : null,
+                      child: user.photoUrl == null
+                          ? Text(
+                              user.displayName.isNotEmpty
+                                  ? user.displayName[0].toUpperCase()
+                                  : '?',
+                              style: const TextStyle(
+                                fontSize: 30,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            )
+                          : null,
+                    ),
+                    if (_uploadingPhoto)
+                      const SizedBox(
+                        width: 30,
+                        height: 30,
+                        child: CircularProgressIndicator(color: Colors.white),
+                      ),
+                    if (!_uploadingPhoto)
+                      Positioned(
+                        right: 0,
+                        bottom: 0,
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: const BoxDecoration(
+                            color: AppColors.primary,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.camera_alt_outlined,
+                            size: 16,
+                          ),
                         ),
-                      )
-                    : null,
+                      ),
+                  ],
+                ),
               ),
               const SizedBox(height: 12),
               Text(
@@ -477,6 +499,53 @@ class _ProfileContentState extends State<_ProfileContent> {
     );
   }
 
+  Future<void> _changeProfilePhoto() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Choose from gallery'),
+              onTap: () => Navigator.pop(sheetContext, ImageSource.gallery),
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt_outlined),
+              title: const Text('Take a photo'),
+              onTap: () => Navigator.pop(sheetContext, ImageSource.camera),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source == null || !mounted) return;
+
+    setState(() => _uploadingPhoto = true);
+    try {
+      final cropped = await _photoStorage.pickAndCrop(context, source);
+      if (cropped == null || !mounted) return;
+      final authState = context.read<AuthBloc>().state;
+      if (authState is! AuthAuthenticated) return;
+      final photoUrl = await _photoStorage.upload(
+        image: cropped,
+        userId: authState.user.uid,
+      );
+      if (!mounted) return;
+      context.read<AuthBloc>().add(AuthProfileUpdated(photoUrl: photoUrl));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Profile photo updated')));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not update profile photo: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _uploadingPhoto = false);
+    }
+  }
+
   Widget _buildStatsRow(UserModel user) {
     return Row(
       children: [
@@ -486,7 +555,6 @@ class _ProfileContentState extends State<_ProfileContent> {
           value: user.preferredSide == AppConstants.sideForerhand ? 'R' : 'L',
           label: 'Side',
         ),
-        _StatBox(value: '${user.favoriteVenueIds.length}', label: 'Favorites'),
       ],
     );
   }

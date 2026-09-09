@@ -2,7 +2,7 @@ name: padel
 description: "Padel Court Booking App — real-time booking, matchmaking, and admin management."
 publish_to: 'none'
 
-version: 1.0.1
+version: 1.0.1+1
 
 environment:
   sdk: ^3.10.3
@@ -10,7 +10,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-
+  
   cupertino_icons: ^1.0.8
 
   # Firebase
@@ -47,6 +47,7 @@ dependencies:
   url_launcher: ^6.3.1
   shared_preferences: ^2.5.3
   image_picker: ^1.2.2
+  image_cropper: ^8.0.2
   file_picker: ^11.0.2
   package_info_plus: ^9.0.1
 

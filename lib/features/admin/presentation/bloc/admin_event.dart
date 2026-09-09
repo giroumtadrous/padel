@@ -11,7 +11,11 @@ class LoadAdminDashboard extends AdminEvent {
   final String adminId;
   final String venueId;
   final DateTime date;
-  const LoadAdminDashboard({required this.adminId, required this.venueId, required this.date});
+  const LoadAdminDashboard({
+    required this.adminId,
+    required this.venueId,
+    required this.date,
+  });
   @override
   List<Object?> get props => [adminId, venueId, date];
 }
@@ -59,7 +63,11 @@ class ToggleCourtActive extends AdminEvent {
   final String venueId;
   final String courtId;
   final bool isActive;
-  const ToggleCourtActive({required this.venueId, required this.courtId, required this.isActive});
+  const ToggleCourtActive({
+    required this.venueId,
+    required this.courtId,
+    required this.isActive,
+  });
   @override
   List<Object?> get props => [venueId, courtId, isActive];
 }
@@ -72,19 +80,18 @@ class UpdateCourt extends AdminEvent {
   List<Object?> get props => [venueId, court.id];
 }
 
-class AssignCourtAdmin extends AdminEvent {
+class AssignVenueAdmin extends AdminEvent {
   final String venueId;
-  final String courtId;
-  final String adminEmail;
-  const AssignCourtAdmin({required this.venueId, required this.courtId, required this.adminEmail});
+  final String adminPhone;
+  const AssignVenueAdmin({required this.venueId, required this.adminPhone});
   @override
-  List<Object?> get props => [venueId, courtId, adminEmail];
+  List<Object?> get props => [venueId, adminPhone];
 }
 
-class UnassignCourtAdmin extends AdminEvent {
+class UnassignVenueAdmin extends AdminEvent {
   final String venueId;
-  final String courtId;
-  const UnassignCourtAdmin({required this.venueId, required this.courtId});
+  final String adminPhone;
+  const UnassignVenueAdmin({required this.venueId, required this.adminPhone});
   @override
-  List<Object?> get props => [venueId, courtId];
+  List<Object?> get props => [venueId, adminPhone];
 }

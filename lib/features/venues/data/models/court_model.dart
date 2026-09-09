@@ -18,6 +18,7 @@ class CourtModel {
   // extra user lookup (mirrors venueName/courtName denormalisation elsewhere).
   final String? courtAdminId;
   final String? courtAdminEmail;
+  final String? courtAdminPhone;
 
   const CourtModel({
     required this.id,
@@ -35,19 +36,23 @@ class CourtModel {
     this.blockedDates = const [],
     this.courtAdminId,
     this.courtAdminEmail,
+    this.courtAdminPhone,
   });
 
-  double priceForHour(int hour) =>
-      (hour >= peakStartHour && hour < peakEndHour) ? peakHourPrice : offPeakPrice;
+  double priceForHour(int hour) => (hour >= peakStartHour && hour < peakEndHour)
+      ? peakHourPrice
+      : offPeakPrice;
 
   bool isPeak(int hour) => hour >= peakStartHour && hour < peakEndHour;
 
   bool isDateBlocked(DateTime date) {
     final normalized = DateTime(date.year, date.month, date.day);
-    return blockedDates.any((d) =>
-        d.year == normalized.year &&
-        d.month == normalized.month &&
-        d.day == normalized.day);
+    return blockedDates.any(
+      (d) =>
+          d.year == normalized.year &&
+          d.month == normalized.month &&
+          d.day == normalized.day,
+    );
   }
 
   factory CourtModel.fromJson(Map<String, dynamic> json) {
@@ -78,28 +83,28 @@ class CourtModel {
       blockedDates: blocked,
       courtAdminId: json['courtAdminId'] as String?,
       courtAdminEmail: json['courtAdminEmail'] as String?,
+      courtAdminPhone: json['courtAdminPhone'] as String?,
     );
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'venueId': venueId,
-        'name': name,
-        'courtType': courtType,
-        'surface': surface,
-        'imageUrl': imageUrl,
-        'peakHourPrice': peakHourPrice,
-        'offPeakPrice': offPeakPrice,
-        'peakStartHour': peakStartHour,
-        'peakEndHour': peakEndHour,
-        'isActive': isActive,
-        'maintenanceNote': maintenanceNote,
-        'blockedDates': blockedDates
-            .map((d) => Timestamp.fromDate(d))
-            .toList(),
-        'courtAdminId': courtAdminId,
-        'courtAdminEmail': courtAdminEmail,
-      };
+    'id': id,
+    'venueId': venueId,
+    'name': name,
+    'courtType': courtType,
+    'surface': surface,
+    'imageUrl': imageUrl,
+    'peakHourPrice': peakHourPrice,
+    'offPeakPrice': offPeakPrice,
+    'peakStartHour': peakStartHour,
+    'peakEndHour': peakEndHour,
+    'isActive': isActive,
+    'maintenanceNote': maintenanceNote,
+    'blockedDates': blockedDates.map((d) => Timestamp.fromDate(d)).toList(),
+    'courtAdminId': courtAdminId,
+    'courtAdminEmail': courtAdminEmail,
+    'courtAdminPhone': courtAdminPhone,
+  };
 
   CourtModel copyWith({
     String? name,
@@ -128,6 +133,9 @@ class CourtModel {
       isActive: isActive ?? this.isActive,
       maintenanceNote: maintenanceNote ?? this.maintenanceNote,
       blockedDates: blockedDates ?? this.blockedDates,
+      courtAdminId: courtAdminId,
+      courtAdminEmail: courtAdminEmail,
+      courtAdminPhone: courtAdminPhone,
     );
   }
 }

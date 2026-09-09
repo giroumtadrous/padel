@@ -22,6 +22,7 @@ class ManageCourtsScreen extends StatefulWidget {
 
 class _ManageCourtsScreenState extends State<ManageCourtsScreen> {
   List<CourtModel> _courts = [];
+  List<String> _venueOwnerPhones = [];
   bool _loading = true;
 
   @override
@@ -32,9 +33,17 @@ class _ManageCourtsScreenState extends State<ManageCourtsScreen> {
 
   Future<void> _loadCourts() async {
     setState(() => _loading = true);
-    final courts = await context.read<AdminService>().getAdminCourts(widget.venueId);
+    final courts = await context.read<AdminService>().getAdminCourts(
+      widget.venueId,
+    );
+    final venue = await context.read<AdminService>().getVenue(widget.venueId);
     setState(() {
       _courts = courts;
+      _venueOwnerPhones = venue == null
+          ? []
+          : venue.venueOwnerPhones.isNotEmpty
+          ? venue.venueOwnerPhones
+          : (venue.venueOwnerPhone == null ? [] : [venue.venueOwnerPhone!]);
       _loading = false;
     });
   }
@@ -48,50 +57,73 @@ class _ManageCourtsScreenState extends State<ManageCourtsScreen> {
         leading: BackButton(onPressed: () => context.go('/admin')),
         actions: [
           IconButton(
+            onPressed: _showAssignVenueOwnerDialog,
+            icon: const Icon(Icons.person_add_alt_1_outlined),
+            tooltip: 'Add venue owner',
+          ),
+          IconButton(
             onPressed: _showAddCourtSheet,
             icon: const Icon(Icons.add_rounded),
           ),
         ],
       ),
-      body: _loading
-          ? const AppLoadingSpinner()
-          : _courts.isEmpty
-              ? const Center(child: Text('No courts yet. Add one!'))
-              : ListView.separated(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _courts.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 12),
-                  itemBuilder: (_, i) => _CourtAdminCard(
-                    court: _courts[i],
-                    venueId: widget.venueId,
-                    onToggle: (isActive) async {
-                      context.read<AdminBloc>().add(ToggleCourtActive(
+      body: Column(
+        children: [
+          if (_venueOwnerPhones.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: _venueOwnerPhones
+                      .map(
+                        (phone) => Chip(
+                          avatar: const Icon(
+                            Icons.verified_user_outlined,
+                            size: 16,
+                          ),
+                          label: Text(phone),
+                          onDeleted: () => _removeVenueOwner(phone),
+                        ),
+                      )
+                      .toList(),
+                ),
+              ),
+            ),
+          Expanded(
+            child: _loading
+                ? const AppLoadingSpinner()
+                : _courts.isEmpty
+                ? const Center(child: Text('No courts yet. Add one!'))
+                : ListView.separated(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: _courts.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    itemBuilder: (_, i) => _CourtAdminCard(
+                      court: _courts[i],
+                      venueId: widget.venueId,
+                      onToggle: (isActive) async {
+                        context.read<AdminBloc>().add(
+                          ToggleCourtActive(
                             venueId: widget.venueId,
                             courtId: _courts[i].id,
                             isActive: isActive,
-                          ));
-                      await _loadCourts();
-                    },
-                    onEdit: () => _showEditCourtSheet(_courts[i]),
-                    onBlockDateAdded: (date) => _blockDate(_courts[i].id, date),
-                    onBlockDateRemoved: (date) => _unblockDate(_courts[i].id, date),
-                    onAssignAdmin: (email) async {
-                      context.read<AdminBloc>().add(AssignCourtAdmin(
-                            venueId: widget.venueId,
-                            courtId: _courts[i].id,
-                            adminEmail: email,
-                          ));
-                      await _loadCourts();
-                    },
-                    onUnassignAdmin: () async {
-                      context.read<AdminBloc>().add(UnassignCourtAdmin(
-                            venueId: widget.venueId,
-                            courtId: _courts[i].id,
-                          ));
-                      await _loadCourts();
-                    },
+                          ),
+                        );
+                        await _loadCourts();
+                      },
+                      onEdit: () => _showEditCourtSheet(_courts[i]),
+                      onBlockDateAdded: (date) =>
+                          _blockDate(_courts[i].id, date),
+                      onBlockDateRemoved: (date) =>
+                          _unblockDate(_courts[i].id, date),
+                    ),
                   ),
-                ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -103,9 +135,74 @@ class _ManageCourtsScreenState extends State<ManageCourtsScreen> {
         .collection('courts')
         .doc(courtId)
         .update({
-      'blockedDates': FieldValue.arrayUnion([Timestamp.fromDate(normalized)]),
-    });
+          'blockedDates': FieldValue.arrayUnion([
+            Timestamp.fromDate(normalized),
+          ]),
+        });
     await _loadCourts();
+  }
+
+  void _showAssignVenueOwnerDialog() {
+    final phoneCtrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Assign Venue Owner'),
+        content: TextField(
+          controller: phoneCtrl,
+          keyboardType: TextInputType.phone,
+          decoration: const InputDecoration(
+            labelText: 'Owner phone number',
+            hintText: '+201234567890',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final phone = phoneCtrl.text.trim();
+              if (phone.isEmpty) return;
+              Navigator.pop(ctx);
+              _assignVenueOwner(phone);
+            },
+            child: const Text('Assign'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _assignVenueOwner(String phone) async {
+    try {
+      await context.read<AdminService>().assignVenueAdmin(
+        venueId: widget.venueId,
+        adminPhone: phone,
+      );
+      await _loadCourts();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString()), backgroundColor: AppColors.error),
+      );
+    }
+  }
+
+  Future<void> _removeVenueOwner(String phone) async {
+    try {
+      await context.read<AdminService>().unassignVenueAdmin(
+        venueId: widget.venueId,
+        adminPhone: phone,
+      );
+      await _loadCourts();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString()), backgroundColor: AppColors.error),
+      );
+    }
   }
 
   Future<void> _unblockDate(String courtId, DateTime date) async {
@@ -116,8 +213,10 @@ class _ManageCourtsScreenState extends State<ManageCourtsScreen> {
         .collection('courts')
         .doc(courtId)
         .update({
-      'blockedDates': FieldValue.arrayRemove([Timestamp.fromDate(normalized)]),
-    });
+          'blockedDates': FieldValue.arrayRemove([
+            Timestamp.fromDate(normalized),
+          ]),
+        });
     await _loadCourts();
   }
 
@@ -126,8 +225,12 @@ class _ManageCourtsScreenState extends State<ManageCourtsScreen> {
 
   void _showCourtFormSheet(CourtModel? existing) {
     final nameCtrl = TextEditingController(text: existing?.name);
-    final peakCtrl = TextEditingController(text: existing?.peakHourPrice.toString() ?? '150');
-    final offPeakCtrl = TextEditingController(text: existing?.offPeakPrice.toString() ?? '90');
+    final peakCtrl = TextEditingController(
+      text: existing?.peakHourPrice.toString() ?? '150',
+    );
+    final offPeakCtrl = TextEditingController(
+      text: existing?.offPeakPrice.toString() ?? '90',
+    );
     String courtType = existing?.courtType ?? 'indoor';
     String surface = existing?.surface ?? 'glass';
 
@@ -136,16 +239,24 @@ class _ManageCourtsScreenState extends State<ManageCourtsScreen> {
       isScrollControlled: true,
       backgroundColor: AppColors.surface,
       shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (ctx) => Padding(
-        padding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
+        padding: EdgeInsets.fromLTRB(
+          24,
+          24,
+          24,
+          MediaQuery.of(ctx).viewInsets.bottom + 24,
+        ),
         child: StatefulBuilder(
           builder: (ctx, setSheetState) => Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(existing == null ? 'Add Court' : 'Edit Court',
-                  style: Theme.of(ctx).textTheme.headlineMedium),
+              Text(
+                existing == null ? 'Add Court' : 'Edit Court',
+                style: Theme.of(ctx).textTheme.headlineMedium,
+              ),
               const SizedBox(height: 16),
               TextField(
                 controller: nameCtrl,
@@ -158,7 +269,9 @@ class _ManageCourtsScreenState extends State<ManageCourtsScreen> {
                     child: TextField(
                       controller: peakCtrl,
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'Peak Price (EGP)'),
+                      decoration: const InputDecoration(
+                        labelText: 'Peak Price (EGP)',
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -166,7 +279,9 @@ class _ManageCourtsScreenState extends State<ManageCourtsScreen> {
                     child: TextField(
                       controller: offPeakCtrl,
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'Off-Peak Price (EGP)'),
+                      decoration: const InputDecoration(
+                        labelText: 'Off-Peak Price (EGP)',
+                      ),
                     ),
                   ),
                 ],
@@ -180,7 +295,9 @@ class _ManageCourtsScreenState extends State<ManageCourtsScreen> {
                       decoration: const InputDecoration(labelText: 'Type'),
                       dropdownColor: AppColors.card,
                       items: ['indoor', 'outdoor']
-                          .map((v) => DropdownMenuItem(value: v, child: Text(v)))
+                          .map(
+                            (v) => DropdownMenuItem(value: v, child: Text(v)),
+                          )
                           .toList(),
                       onChanged: (v) => setSheetState(() => courtType = v!),
                     ),
@@ -192,7 +309,9 @@ class _ManageCourtsScreenState extends State<ManageCourtsScreen> {
                       decoration: const InputDecoration(labelText: 'Surface'),
                       dropdownColor: AppColors.card,
                       items: ['glass', 'turf']
-                          .map((v) => DropdownMenuItem(value: v, child: Text(v)))
+                          .map(
+                            (v) => DropdownMenuItem(value: v, child: Text(v)),
+                          )
                           .toList(),
                       onChanged: (v) => setSheetState(() => surface = v!),
                     ),
@@ -213,9 +332,14 @@ class _ManageCourtsScreenState extends State<ManageCourtsScreen> {
                     offPeakPrice: double.tryParse(offPeakCtrl.text) ?? 90,
                   );
                   if (existing == null) {
-                    await context.read<VenueService>().addCourt(widget.venueId, court);
+                    await context.read<VenueService>().addCourt(
+                      widget.venueId,
+                      court,
+                    );
                   } else {
-                    context.read<AdminBloc>().add(UpdateCourt(venueId: widget.venueId, court: court));
+                    context.read<AdminBloc>().add(
+                      UpdateCourt(venueId: widget.venueId, court: court),
+                    );
                   }
                   if (ctx.mounted) Navigator.pop(ctx);
                   await _loadCourts();
@@ -236,8 +360,6 @@ class _CourtAdminCard extends StatelessWidget {
   final VoidCallback onEdit;
   final ValueChanged<DateTime> onBlockDateAdded;
   final ValueChanged<DateTime> onBlockDateRemoved;
-  final ValueChanged<String> onAssignAdmin;
-  final VoidCallback onUnassignAdmin;
 
   static final _dateFmt = DateFormat('MMM d, yyyy');
 
@@ -248,8 +370,6 @@ class _CourtAdminCard extends StatelessWidget {
     required this.onEdit,
     required this.onBlockDateAdded,
     required this.onBlockDateRemoved,
-    required this.onAssignAdmin,
-    required this.onUnassignAdmin,
   });
 
   @override
@@ -291,7 +411,10 @@ class _CourtAdminCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(court.name, style: Theme.of(context).textTheme.titleLarge),
+                      Text(
+                        court.name,
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
                       Text(
                         '${court.courtType} · ${court.surface} · Peak: EGP ${court.peakHourPrice.toInt()}',
                         style: Theme.of(context).textTheme.bodySmall,
@@ -301,53 +424,17 @@ class _CourtAdminCard extends StatelessWidget {
                 ),
                 IconButton(
                   onPressed: onEdit,
-                  icon: const Icon(Icons.edit_outlined,
-                      size: 18, color: AppColors.textSecondary),
+                  icon: const Icon(
+                    Icons.edit_outlined,
+                    size: 18,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
                 Switch(
                   value: court.isActive,
                   onChanged: onToggle,
                   activeColor: AppColors.primary,
                 ),
-              ],
-            ),
-          ),
-
-          // Court admin assignment
-          const Divider(height: 1),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
-            child: Row(
-              children: [
-                const Icon(Icons.verified_user_outlined, size: 14, color: AppColors.secondary),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    court.courtAdminEmail != null
-                        ? 'Admin: ${court.courtAdminEmail}'
-                        : 'No admin assigned',
-                    style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                if (court.courtAdminEmail != null)
-                  TextButton(
-                    onPressed: onUnassignAdmin,
-                    style: TextButton.styleFrom(
-                      foregroundColor: AppColors.error,
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    ),
-                    child: const Text('Remove', style: TextStyle(fontSize: 12)),
-                  )
-                else
-                  TextButton(
-                    onPressed: () => _showAssignDialog(context),
-                    style: TextButton.styleFrom(
-                      foregroundColor: AppColors.primary,
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    ),
-                    child: const Text('Assign Admin', style: TextStyle(fontSize: 12)),
-                  ),
               ],
             ),
           ),
@@ -361,7 +448,11 @@ class _CourtAdminCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.block_rounded, size: 14, color: AppColors.error),
+                    const Icon(
+                      Icons.block_rounded,
+                      size: 14,
+                      color: AppColors.error,
+                    ),
                     const SizedBox(width: 6),
                     const Text(
                       'Blocked Dates',
@@ -394,10 +485,16 @@ class _CourtAdminCard extends StatelessWidget {
                         }
                       },
                       icon: const Icon(Icons.add_rounded, size: 14),
-                      label: const Text('Block Date', style: TextStyle(fontSize: 12)),
+                      label: const Text(
+                        'Block Date',
+                        style: TextStyle(fontSize: 12),
+                      ),
                       style: TextButton.styleFrom(
                         foregroundColor: AppColors.primary,
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                       ),
                     ),
                   ],
@@ -407,8 +504,7 @@ class _CourtAdminCard extends StatelessWidget {
                     padding: const EdgeInsets.only(top: 4),
                     child: Text(
                       'No blocked dates',
-                      style: TextStyle(
-                          fontSize: 11, color: AppColors.textHint),
+                      style: TextStyle(fontSize: 11, color: AppColors.textHint),
                     ),
                   )
                 else
@@ -423,7 +519,8 @@ class _CourtAdminCard extends StatelessWidget {
                         ),
                         backgroundColor: AppColors.error.withValues(alpha: 0.1),
                         side: BorderSide(
-                            color: AppColors.error.withValues(alpha: 0.3)),
+                          color: AppColors.error.withValues(alpha: 0.3),
+                        ),
                         deleteIcon: const Icon(Icons.close_rounded, size: 12),
                         deleteIconColor: AppColors.error,
                         onDeleted: () => onBlockDateRemoved(date),
@@ -435,36 +532,6 @@ class _CourtAdminCard extends StatelessWidget {
                   ),
               ],
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showAssignDialog(BuildContext context) {
-    final emailCtrl = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Assign Court Admin'),
-        content: TextField(
-          controller: emailCtrl,
-          keyboardType: TextInputType.emailAddress,
-          decoration: const InputDecoration(
-            labelText: 'Admin Email',
-            hintText: 'admin@example.com',
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () {
-              final email = emailCtrl.text.trim();
-              if (email.isEmpty) return;
-              Navigator.pop(ctx);
-              onAssignAdmin(email);
-            },
-            child: const Text('Assign'),
           ),
         ],
       ),
