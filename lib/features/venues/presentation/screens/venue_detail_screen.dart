@@ -71,8 +71,9 @@ class _VenueDetailScreenState extends State<VenueDetailScreen> {
             appBar: AppBar(),
             body: AppErrorView(
               message: state.message,
-              onRetry: () =>
-                  context.read<VenuesBloc>().add(LoadVenueDetail(widget.venueId)),
+              onRetry: () => context.read<VenuesBloc>().add(
+                LoadVenueDetail(widget.venueId),
+              ),
             ),
           );
         }
@@ -87,7 +88,11 @@ class _VenueDetailScreenState extends State<VenueDetailScreen> {
     );
   }
 
-  Widget _buildContent(BuildContext context, VenueModel venue, List<CourtModel> courts) {
+  Widget _buildContent(
+    BuildContext context,
+    VenueModel venue,
+    List<CourtModel> courts,
+  ) {
     _loadGridIfNeeded(venue, courts);
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -120,26 +125,37 @@ class _VenueDetailScreenState extends State<VenueDetailScreen> {
                           onTap: () async {
                             final query = '${venue.address}, ${venue.city}';
                             final storedMapsUrl = venue.googleMapsUrl?.trim();
-                            final googleMapsUrl = storedMapsUrl != null && storedMapsUrl.isNotEmpty
-                              ? Uri.parse(storedMapsUrl)
-                              : Uri.parse(
-                                'https://www.google.com/maps/search/?api=1&query=${venue.latitude},${venue.longitude}');
+                            final googleMapsUrl =
+                                storedMapsUrl != null &&
+                                    storedMapsUrl.isNotEmpty
+                                ? Uri.parse(storedMapsUrl)
+                                : Uri.parse(
+                                    'https://www.google.com/maps/search/?api=1&query=${venue.latitude},${venue.longitude}',
+                                  );
                             final fallbackUrl = Uri.parse(
-                                'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(query)}');
+                              'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(query)}',
+                            );
 
                             try {
-                              if (venue.latitude != 0.0 && venue.longitude != 0.0) {
+                              if (venue.latitude != 0.0 &&
+                                  venue.longitude != 0.0) {
                                 if (await canLaunchUrl(googleMapsUrl)) {
-                                  await launchUrl(googleMapsUrl,
-                                      mode: LaunchMode.externalApplication);
+                                  await launchUrl(
+                                    googleMapsUrl,
+                                    mode: LaunchMode.externalApplication,
+                                  );
                                 } else {
-                                  await launchUrl(fallbackUrl,
-                                      mode: LaunchMode.externalApplication);
+                                  await launchUrl(
+                                    fallbackUrl,
+                                    mode: LaunchMode.externalApplication,
+                                  );
                                 }
                               } else {
                                 if (await canLaunchUrl(fallbackUrl)) {
-                                  await launchUrl(fallbackUrl,
-                                      mode: LaunchMode.externalApplication);
+                                  await launchUrl(
+                                    fallbackUrl,
+                                    mode: LaunchMode.externalApplication,
+                                  );
                                 }
                               }
                             } catch (_) {
@@ -153,8 +169,11 @@ class _VenueDetailScreenState extends State<VenueDetailScreen> {
                             padding: const EdgeInsets.symmetric(vertical: 4),
                             child: Row(
                               children: [
-                                const Icon(Icons.location_on_outlined,
-                                    size: 13, color: AppColors.secondary),
+                                const Icon(
+                                  Icons.location_on_outlined,
+                                  size: 13,
+                                  color: AppColors.secondary,
+                                ),
                                 const SizedBox(width: 3),
                                 Expanded(
                                   child: Text(
@@ -221,8 +240,10 @@ class _VenueDetailScreenState extends State<VenueDetailScreen> {
               child: Center(
                 child: IconButton(
                   onPressed: () => context.go('/venues'),
-                  icon: const Icon(Icons.arrow_back_rounded,
-                      color: AppColors.textOnDark),
+                  icon: const Icon(
+                    Icons.arrow_back_rounded,
+                    color: AppColors.textOnDark,
+                  ),
                 ),
               ),
             ),
@@ -233,7 +254,10 @@ class _VenueDetailScreenState extends State<VenueDetailScreen> {
               bottom: 0,
               child: Center(
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.navyLight,
                     borderRadius: BorderRadius.circular(8),
@@ -261,7 +285,9 @@ class _VenueDetailScreenState extends State<VenueDetailScreen> {
         : 90.0;
     // We use venue rating from bloc state
     final venueState = context.read<VenuesBloc>().state;
-    final rating = venueState is VenueDetailLoaded ? venueState.venue.rating : 0.0;
+    final rating = venueState is VenueDetailLoaded
+        ? venueState.venue.rating
+        : 0.0;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
@@ -316,7 +342,8 @@ class _VenueDetailScreenState extends State<VenueDetailScreen> {
               separatorBuilder: (_, __) => const SizedBox(width: 8),
               itemBuilder: (_, i) {
                 final date = today.add(Duration(days: i));
-                final isSelected = _selectedDate.year == date.year &&
+                final isSelected =
+                    _selectedDate.year == date.year &&
                     _selectedDate.month == date.month &&
                     _selectedDate.day == date.day;
                 return GestureDetector(
@@ -336,7 +363,9 @@ class _VenueDetailScreenState extends State<VenueDetailScreen> {
                       color: isSelected ? AppColors.primary : AppColors.card,
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                        color: isSelected ? AppColors.primary : AppColors.divider,
+                        color: isSelected
+                            ? AppColors.primary
+                            : AppColors.divider,
                       ),
                     ),
                     child: Column(
@@ -346,7 +375,9 @@ class _VenueDetailScreenState extends State<VenueDetailScreen> {
                           _dateLabelFmt.format(date),
                           style: TextStyle(
                             fontSize: 10,
-                            color: isSelected ? Colors.white.withValues(alpha: 0.8) : AppColors.textSecondary,
+                            color: isSelected
+                                ? Colors.white.withValues(alpha: 0.8)
+                                : AppColors.textSecondary,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -356,7 +387,9 @@ class _VenueDetailScreenState extends State<VenueDetailScreen> {
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w800,
-                            color: isSelected ? Colors.white : AppColors.textPrimary,
+                            color: isSelected
+                                ? Colors.white
+                                : AppColors.textPrimary,
                           ),
                         ),
                       ],
@@ -386,7 +419,9 @@ class _VenueDetailScreenState extends State<VenueDetailScreen> {
       if (!mounted) return;
       setState(() => _gridLoading = true);
       try {
-        final result = await context.read<BookingService>().getVenueSlotsForDate(
+        final result = await context
+            .read<BookingService>()
+            .getVenueSlotsForDate(
               venueId: venue.id,
               courts: courts,
               date: _selectedDate,
@@ -410,15 +445,18 @@ class _VenueDetailScreenState extends State<VenueDetailScreen> {
     if (_gridLoading && _slotsByCourt.isEmpty) {
       return const Padding(
         padding: EdgeInsets.all(20),
-        child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+        child: Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
       );
     }
 
-    final times = _slotsByCourt.values
-        .expand((slots) => slots.map((s) => s.startTime))
-        .toSet()
-        .toList()
-      ..sort();
+    final times =
+        _slotsByCourt.values
+            .expand((slots) => slots.map((s) => s.startTime))
+            .toSet()
+            .toList()
+          ..sort();
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
@@ -450,55 +488,26 @@ class _VenueDetailScreenState extends State<VenueDetailScreen> {
                 style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
               ),
             )
-          else if (courts.length == 1)
-            // Single court: wide centered 2-column grid
-            GridView.builder(
-              physics: const NeverScrollableScrollPhysics(),
-              shrinkWrap: true,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                mainAxisSpacing: 8,
-                crossAxisSpacing: 8,
-                childAspectRatio: 3.2,
-              ),
-              itemCount: times.length,
-              itemBuilder: (_, i) => _buildGridCell(courts.first, times[i]),
-            )
           else
-            Center(
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Table(
-                  defaultColumnWidth: FixedColumnWidth(
-                    courts.length == 2 ? 180 : 140,
-                  ),
-                  children: [
-                    TableRow(
-                      children: courts
-                          .map((court) => Center(
-                                child: Padding(
-                                  padding: const EdgeInsets.only(bottom: 8),
-                                  child: Text(
-                                    court.name,
-                                    textAlign: TextAlign.center,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppColors.textPrimary,
-                                    ),
-                                  ),
-                                ),
-                              ))
-                          .toList(),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (final court in courts) ...[
+                  if (courts.length > 1)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8, bottom: 2),
+                      child: Text(
+                        court.name,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
                     ),
-                    ...times.map((time) => TableRow(
-                          children: courts.map((court) => _buildGridCell(court, time)).toList(),
-                        )),
-                  ],
-                ),
-              ),
+                  for (final time in times) _buildGridCell(court, time),
+                ],
+              ],
             ),
         ],
       ),
@@ -516,14 +525,19 @@ class _VenueDetailScreenState extends State<VenueDetailScreen> {
     }
 
     if (slot == null) {
-      return const Padding(padding: EdgeInsets.all(4), child: SizedBox(height: 54));
+      return const Padding(
+        padding: EdgeInsets.all(4),
+        child: SizedBox(height: 54),
+      );
     }
 
     final isSelected = _selectedSlots.any((s) => s.id == slot!.id);
     final isPast = slot.startTime.isBefore(DateTime.now());
-    final isBooked = slot.status == SlotStatus.booked ||
+    final isBooked =
+        slot.status == SlotStatus.booked ||
         slot.status == SlotStatus.maintenance ||
-        (slot.status == SlotStatus.held && slot.heldBy != _currentUserId(context));
+        (slot.status == SlotStatus.held &&
+            slot.heldBy != _currentUserId(context));
     final isUnavailable = isBooked || isPast;
 
     Color bgColor;
@@ -559,7 +573,11 @@ class _VenueDetailScreenState extends State<VenueDetailScreen> {
             children: [
               Text(
                 _timeFmt.format(slot.startTime),
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: textColor),
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: textColor,
+                ),
               ),
               const SizedBox(width: 8),
               Text(
@@ -603,7 +621,8 @@ class _VenueDetailScreenState extends State<VenueDetailScreen> {
       final idx = _selectedSlots.indexWhere((s) => s.id == slot.id);
       if (idx != -1) {
         final isAtEdge =
-            slot.id == _selectedSlots.first.id || slot.id == _selectedSlots.last.id;
+            slot.id == _selectedSlots.first.id ||
+            slot.id == _selectedSlots.last.id;
         if (isAtEdge) {
           _selectedSlots.removeAt(idx);
         } else {
@@ -619,7 +638,9 @@ class _VenueDetailScreenState extends State<VenueDetailScreen> {
 
       if (slot.startTime.isAtSameMomentAs(_selectedSlots.last.endTime)) {
         _selectedSlots.add(slot);
-      } else if (slot.endTime.isAtSameMomentAs(_selectedSlots.first.startTime)) {
+      } else if (slot.endTime.isAtSameMomentAs(
+        _selectedSlots.first.startTime,
+      )) {
         _selectedSlots.insert(0, slot);
       } else {
         _showSnack('Please select consecutive time slots');
@@ -628,7 +649,9 @@ class _VenueDetailScreenState extends State<VenueDetailScreen> {
   }
 
   void _showSnack(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Widget _buildBookBar(BuildContext context, VenueModel venue) {
@@ -640,13 +663,19 @@ class _VenueDetailScreenState extends State<VenueDetailScreen> {
     return BlocListener<BookingBloc, BookingState>(
       listener: (context, state) {
         if (state is SlotHeld) {
-          context.push('/booking/confirm', extra: {
-            'venueName': venue.name,
-            'courtName': _selectedCourt?.name ?? '',
-          });
+          context.push(
+            '/booking/confirm',
+            extra: {
+              'venueName': venue.name,
+              'courtName': _selectedCourt?.name ?? '',
+            },
+          );
         } else if (state is BookingError) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(state.message), backgroundColor: AppColors.error),
+            SnackBar(
+              content: Text(state.message),
+              backgroundColor: AppColors.error,
+            ),
           );
         }
       },
@@ -664,23 +693,28 @@ class _VenueDetailScreenState extends State<VenueDetailScreen> {
               final buttonLabel = !isAuthenticated
                   ? 'Sign in to book'
                   : hasSelection
-                      ? 'Book for EGP ${totalPrice.toStringAsFixed(0)}'
-                      : 'Select a time slot';
+                  ? 'Book for EGP ${totalPrice.toStringAsFixed(0)}'
+                  : 'Select a time slot';
               return ElevatedButton(
                 onPressed: hasSelection && !isLoading
-                    ? () => isAuthenticated ? _holdSlot(context) : _promptSignIn(context)
+                    ? () => isAuthenticated
+                          ? _holdSlot(context)
+                          : _promptSignIn(context)
                     : null,
                 style: ElevatedButton.styleFrom(
                   minimumSize: const Size.fromHeight(50),
-                  backgroundColor:
-                      hasSelection ? AppColors.primary : AppColors.textHint,
+                  backgroundColor: hasSelection
+                      ? AppColors.primary
+                      : AppColors.textHint,
                 ),
                 child: isLoading
                     ? const SizedBox(
                         width: 20,
                         height: 20,
                         child: CircularProgressIndicator(
-                            color: Colors.white, strokeWidth: 2),
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
                       )
                     : Text(
                         buttonLabel,
@@ -706,10 +740,9 @@ class _VenueDetailScreenState extends State<VenueDetailScreen> {
       return;
     }
 
-    context.read<BookingBloc>().add(HoldSlots(
-          slots: List.of(_selectedSlots),
-          userId: authState.user.uid,
-        ));
+    context.read<BookingBloc>().add(
+      HoldSlots(slots: List.of(_selectedSlots), userId: authState.user.uid),
+    );
   }
 
   void _promptSignIn(BuildContext context) {
@@ -806,7 +839,10 @@ class _LegendDot extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 4),
-        Text(label, style: const TextStyle(fontSize: 10, color: AppColors.textSecondary)),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 10, color: AppColors.textSecondary),
+        ),
       ],
     );
   }
@@ -825,8 +861,16 @@ class _CourtHeroPainter extends CustomPainter {
 
     canvas.drawRect(Rect.fromLTWH(0, 0, w, h), paint);
     canvas.drawLine(Offset(w / 2, 0), Offset(w / 2, h), paint);
-    canvas.drawLine(Offset(w * 0.25, h * 0.2), Offset(w * 0.25, h * 0.8), paint);
-    canvas.drawLine(Offset(w * 0.75, h * 0.2), Offset(w * 0.75, h * 0.8), paint);
+    canvas.drawLine(
+      Offset(w * 0.25, h * 0.2),
+      Offset(w * 0.25, h * 0.8),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(w * 0.75, h * 0.2),
+      Offset(w * 0.75, h * 0.8),
+      paint,
+    );
     canvas.drawLine(Offset(w * 0.25, h / 2), Offset(w * 0.75, h / 2), paint);
     paint.strokeWidth = 4;
     canvas.drawLine(Offset(0, h / 2), Offset(w, h / 2), paint);

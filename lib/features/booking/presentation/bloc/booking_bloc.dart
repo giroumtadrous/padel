@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:padel/features/booking/data/models/booking_model.dart';
-import 'package:padel/features/booking/data/models/time_slot_model.dart';
 import 'package:padel/features/booking/data/services/booking_service.dart';
 import 'booking_event.dart';
 import 'booking_state.dart';
@@ -38,31 +37,14 @@ class BookingBloc extends Bloc<BookingEvent, BookingState> {
       return;
     }
 
-    final heldSoFar = <TimeSlotModel>[];
-    for (final slot in event.slots) {
-      final ok = await _bookingService.holdSlot(
-        venueId: slot.venueId,
-        courtId: slot.courtId,
-        date: slot.date,
-        slotId: slot.id,
-        userId: event.userId,
-      );
-      if (!ok) {
-        // Roll back any holds already acquired in this batch.
-        for (final held in heldSoFar) {
-          await _bookingService.releaseHold(
-            venueId: held.venueId,
-            courtId: held.courtId,
-            date: held.date,
-            slotId: held.id,
-            userId: event.userId,
-          );
-        }
-        emit(const BookingError(
-            'One or more selected slots are no longer available. Please choose again.'));
-        return;
-      }
-      heldSoFar.add(slot);
+    final held = await _bookingService.holdSlots(
+      slots: event.slots,
+      userId: event.userId,
+    );
+    if (!held) {
+      emit(const BookingError(
+          'One or more selected slots are no longer available. Please choose again.'));
+      return;
     }
     emit(SlotHeld(
       slots: event.slots,

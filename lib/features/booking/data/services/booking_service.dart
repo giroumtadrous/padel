@@ -235,6 +235,68 @@ class BookingService {
     }
   }
 
+  /// Atomically holds multiple slots in one transaction. This keeps a
+  /// multi-slot booking all-or-nothing without paying one network round trip
+  /// per selected slot.
+  Future<bool> holdSlots({
+    required List<TimeSlotModel> slots,
+    required String userId,
+  }) async {
+    if (slots.isEmpty) return false;
+
+    final slotRefs = slots
+        .map((slot) => _db
+            .collection(AppConstants.venuesCollection)
+            .doc(slot.venueId)
+            .collection(AppConstants.courtsSubcollection)
+            .doc(slot.courtId)
+            .collection(AppConstants.slotsSubcollection)
+            .doc(slot.date)
+            .collection('times')
+            .doc(slot.id))
+        .toList();
+
+    try {
+      await _db.runTransaction((tx) async {
+        final snapshots = await Future.wait(slotRefs.map(tx.get));
+        final now = DateTime.now();
+        final heldUntil = Timestamp.fromDate(
+          now.add(Duration(minutes: AppConstants.slotHoldMinutes)),
+        );
+
+        for (final snapshot in snapshots) {
+          if (!snapshot.exists) throw Exception('Slot not found');
+          final slot = TimeSlotModel.fromJson(snapshot.data()!);
+
+          if (slot.status == SlotStatus.held && slot.heldBy != userId) {
+            if (slot.heldUntil != null && slot.heldUntil!.isAfter(now)) {
+              throw Exception('Slot is currently held by another user');
+            }
+          }
+
+          if (slot.status == SlotStatus.booked) {
+            throw Exception('Slot is already booked');
+          }
+
+          if (slot.status == SlotStatus.maintenance) {
+            throw Exception('Slot is blocked for maintenance');
+          }
+        }
+
+        for (final slotRef in slotRefs) {
+          tx.update(slotRef, {
+            'status': AppConstants.statusHeld,
+            'heldBy': userId,
+            'heldUntil': heldUntil,
+          });
+        }
+      });
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Atomically confirms a booking by converting one or more held, consecutive
   /// slots into a single booking. Supports loyalty discount and wallet payment.
   ///
