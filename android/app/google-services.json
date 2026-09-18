@@ -9,18 +9,54 @@
       "client_info": {
         "mobilesdk_app_id": "1:297754277020:android:624150418badf93d8b2959",
         "android_client_info": {
-            "package_name": "com.giroumtadrous.malaaby"
+          "package_name": "com.example.padel"
         }
       },
       "oauth_client": [
         {
-          "client_id": "297754277020-m6gc23e6a6a11jvmcess5ndtt8q342ur.apps.googleusercontent.com",
+          "client_id": "297754277020-r9olcgsdbce0cmnp7ap5303nkau49k6r.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
-              "package_name": "com.giroumtadrous.malaaby",
-            "certificate_hash": "c9bf488c911d0c9218828e13529e67485350c424"
+            "package_name": "com.example.padel",
+            "certificate_hash": "368db6df2e0fb823d347bc92935f269f2a0c52b0"
           }
         },
+        {
+          "client_id": "297754277020-511o6aeeq4ufrsat0auqotk13seojs6h.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCzBoAEI3fvDB59L8IZ61yoeUaTjz3W5co"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "297754277020-511o6aeeq4ufrsat0auqotk13seojs6h.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "297754277020-a9dle8q3q0n17o8l33fg9qks21j7bde5.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.padel"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:297754277020:android:921c59b2808350128b2959",
+        "android_client_info": {
+          "package_name": "com.giroumtadrous.malaaby"
+        }
+      },
+      "oauth_client": [
         {
           "client_id": "297754277020-511o6aeeq4ufrsat0auqotk13seojs6h.apps.googleusercontent.com",
           "client_type": 3

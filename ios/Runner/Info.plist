@@ -41,6 +41,25 @@
 	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>UIApplicationSceneManifest</key>
+<dict>
+    <key>UIApplicationSupportsMultipleScenes</key>
+    <false/>
+    <key>UISceneConfigurations</key>
+    <dict>
+        <key>UIWindowSceneSessionRoleApplication</key>
+        <array>
+            <dict>
+                <key>UISceneClassName</key>
+                <string>UIWindowScene</string>
+                <key>UISceneDelegateClassName</key>
+                <string>$(PRODUCT_MODULE_NAME).SceneDelegate</string>
+                <key>UISceneConfigurationName</key>
+                <string>Default Configuration</string>
+            </dict>
+        </array>
+    </dict>
+</dict>
 	<key>NSCameraUsageDescription</key>
 	<string>Malaaby needs camera access to take a photo of your payment transfer receipt.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
