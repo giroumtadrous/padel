@@ -13,6 +13,8 @@ flutter precache --ios
 
 cd ios
 
+gem install xcodeproj
+
 ruby -e '
 require "xcodeproj"
 
