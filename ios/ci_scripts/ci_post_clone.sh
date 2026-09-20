@@ -13,7 +13,9 @@ flutter precache --ios
 
 cd ios
 
-gem install xcodeproj
+gem install xcodeproj --user-install
+export GEM_HOME="$(ruby -e 'puts Gem.user_dir')"
+export PATH="$GEM_HOME/bin:$PATH"
 
 ruby -e '
 require "xcodeproj"
